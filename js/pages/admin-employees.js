@@ -125,7 +125,14 @@ async function saveEmployee() {
 }
 
 async function deleteEmployee(id) {
-  if (!confirm('Hapus karyawan ini?')) return;
+  const ok = await showConfirm({
+  icon: '🗑️',
+  title: 'Hapus Karyawan',
+  message: 'Data karyawan ini akan dihapus secara permanen. Lanjutkan?',
+  okText: 'Ya, Hapus',
+  okColor: 'var(--red)',
+});
+if (!ok) return;
   try {
     const { error } = await sb.from('employees').update({ is_active:false }).eq('id',id);
     if (error) throw error;
