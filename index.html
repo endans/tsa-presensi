@@ -1093,22 +1093,40 @@ function showConfirm({ icon='⚠️', title='', message='', okText='Ya, Lanjutka
 (function() {
   let deferredPrompt = null;
   const installBtn = document.getElementById('pwaInstallBtn');
+  if (!installBtn) return;
 
-  // Jangan tampilkan jika sudah running sebagai installed PWA
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-  if (isStandalone || !installBtn) return;
+  // Cek semua kemungkinan "sudah diinstall & dibuka dari ikon"
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
+    window.navigator.standalone === true;
 
-  // Tangkap event dari browser sebelum banner muncul
+  // Jika dibuka dari ikon homescreen, sembunyikan tombol permanen
+  if (isStandalone) {
+    installBtn.style.display = 'none';
+    return;
+  }
+
+  // Simpan status install di localStorage
+  // Jika pernah berhasil diinstall sebelumnya, sembunyikan tombol
+  if (localStorage.getItem('pwa_installed') === '1') {
+    installBtn.style.display = 'none';
+    return;
+  }
+
+  // Tangkap event — hanya tampilkan tombol jika prompt benar-benar siap
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    installBtn.style.display = 'flex'; // tampilkan tombol
+    installBtn.style.display = 'flex';
   });
 
-  // Sembunyikan tombol setelah berhasil install
+  // Setelah berhasil install — simpan status & sembunyikan tombol
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
     installBtn.style.display = 'none';
+    localStorage.setItem('pwa_installed', '1');
   });
 
   window.triggerPwaInstall = async function() {
@@ -1118,6 +1136,7 @@ function showConfirm({ icon='⚠️', title='', message='', okText='Ya, Lanjutka
     deferredPrompt = null;
     if (outcome === 'accepted') {
       installBtn.style.display = 'none';
+      localStorage.setItem('pwa_installed', '1');
     }
   };
 
