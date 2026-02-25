@@ -182,7 +182,14 @@ if (!ok) return;
 }
 
 async function doLogoutEmp() {
-  if (!confirm('Yakin ingin keluar?')) return;
+  const ok = await showConfirm({
+  icon: '↩️',
+  title: 'Keluar dari Akun',
+  message: 'Sesi Anda akan diakhiri. Yakin ingin keluar?',
+  okText: 'Ya, Keluar',
+  okColor: 'var(--accent)',
+});
+if (!ok) return;
   // Jika employee login via Supabase Auth (email), sign out juga
   if (currentUser) await sb.auth.signOut();
   isEmployeeMode  = false;
