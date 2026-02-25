@@ -5,9 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-<link rel="icon" type="image/x-icon" href="assets/ avicon.ico">
   <meta name="theme-color" content="#f0f4ff" />
-  <title>Install Aplikasi— TSA Presence</title>
+  <title>Install — TSA Presence</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -268,7 +267,7 @@
       <div class="feature-icon">📍</div>
       <div>
         <div class="feature-name">Absensi Berbasis GPS</div>
-        <div class="feature-desc">Validasi lokasi otomatis saat masuk & keluar</div>
+        <div class="feature-desc">Validasi lokasi otomatis saat clock-in & clock-out</div>
       </div>
     </div>
     <div class="feature-item">
@@ -326,7 +325,7 @@
   <p class="hint">
     Tidak perlu download dari Play Store.<br/>
     Langsung tersimpan di homescreen smartphone Anda.<br/><br/>
-    Butuh bantuan? Hubungi <a href="https://wa.me/628989363401">IT Support</a>
+    Butuh bantuan? Hubungi <a href="/cdn-cgi/l/email-protection#e58d9781a5919684cb868acb8c81">HRD TSA</a>
   </p>
 </div>
 
@@ -341,13 +340,16 @@
   const iosGuide     = document.getElementById('iosGuide');
 
   let deferredPrompt = null;
+  let promptReady = false;
 
+  // Sudah running sebagai installed PWA
   if (isStandalone) {
     installedMsg.classList.add('visible');
     installBtn.style.display = 'none';
     openBtn.style.display = 'block';
   }
 
+  // iOS — tampilkan panduan manual
   if (isIOS && !isStandalone) {
     btnLabel.textContent = 'Lihat Cara Install';
     installBtn.onclick = () => {
@@ -356,11 +358,37 @@
     };
   }
 
+  // Android/Chrome — nonaktifkan tombol dulu, tunggu prompt siap
+  if (!isIOS && !isStandalone) {
+    installBtn.disabled = true;
+    installBtn.style.opacity = '0.6';
+    btnLabel.textContent = 'Menyiapkan...';
+
+    // Fallback 6 detik: jika prompt tidak datang, berarti sudah pernah diinstall
+    setTimeout(() => {
+      if (!promptReady) {
+        installBtn.disabled = false;
+        installBtn.style.opacity = '1';
+        btnLabel.textContent = 'Buka Aplikasi';
+        installBtn.onclick = () => { window.location.href = 'https://tsa-presence.netlify.app/'; };
+      }
+    }, 6000);
+  }
+
+  // Tangkap event install dari browser
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
+    promptReady = true;
+    if (!isIOS) {
+      btnLabel.textContent = 'Install Aplikasi';
+      installBtn.disabled = false;
+      installBtn.style.opacity = '1';
+      installBtn.onclick = handleInstall;
+    }
   });
 
+  // Berhasil diinstall
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
     installBtn.style.display = 'none';
@@ -370,11 +398,7 @@
   });
 
   async function handleInstall() {
-    if (isIOS) return;
-    if (!deferredPrompt) {
-      window.location.href = 'https://tsa-presence.netlify.app/';
-      return;
-    }
+    if (isIOS || !deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     deferredPrompt = null;
