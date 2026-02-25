@@ -51,6 +51,33 @@
     </div>
     <div class="login-error" id="loginError"></div>
     <button class="btn" onclick="doLoginUnified()" id="loginBtn">🔐 Masuk</button>
+
+    <!-- Tombol Install PWA — otomatis muncul/hilang -->
+    <button id="pwaInstallBtn" onclick="triggerPwaInstall()" style="
+      display: none;
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border, #e2e8f8);
+      background: var(--surface2, #f7f9ff);
+      color: var(--accent, #2563eb);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s, border-color 0.15s;
+    " onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='var(--surface2,#f7f9ff)'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 20h14"/>
+      </svg>
+      Install Aplikasi
+    </button>
+
     <p class="login-hint"> Masuk dengan ID Karyawan (misal <span style="font-family:'JetBrains Mono',monospace;font-weight:700;">TSA-2604-XXX</span>)<br>IT Support &nbsp;|&nbsp; PT Tujuh Sinar Abadi</p>
   </div>
 </div>
@@ -958,15 +985,7 @@
 
 <!-- 8. Boot -->
 <script>boot();</script>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('[SW] Registered:', reg.scope))
-        .catch(err => console.error('[SW] Failed:', err));
-    });
-  }
-</script>
+
 
 <!-- ============================================================ -->
 <!-- CUSTOM CONFIRM MODAL                                          -->
@@ -1067,6 +1086,50 @@ function showConfirm({ icon='⚠️', title='', message='', okText='Ya, Lanjutka
     overlay.addEventListener('click', onOverlay);
   });
 }
+</script>
+
+<!-- ===== PWA INSTALL ===== -->
+<script>
+(function() {
+  let deferredPrompt = null;
+  const installBtn = document.getElementById('pwaInstallBtn');
+
+  // Jangan tampilkan jika sudah running sebagai installed PWA
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (isStandalone || !installBtn) return;
+
+  // Tangkap event dari browser sebelum banner muncul
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'flex'; // tampilkan tombol
+  });
+
+  // Sembunyikan tombol setelah berhasil install
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+  });
+
+  window.triggerPwaInstall = async function() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (outcome === 'accepted') {
+      installBtn.style.display = 'none';
+    }
+  };
+
+  // Daftarkan Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('[SW] Registered'))
+        .catch((err) => console.warn('[SW] Failed:', err));
+    });
+  }
+})();
 </script>
 </body>
 </html>
