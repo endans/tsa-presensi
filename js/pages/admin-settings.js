@@ -101,7 +101,14 @@ async function saveDivisi() {
 }
 
 async function deleteDivisi(id, nama) {
-  if (!confirm(`Hapus divisi "${nama}"?`)) return;
+  const ok = await showConfirm({
+  icon: '🗑️',
+  title: 'Hapus Divisi',
+  message: `Divisi "${nama}" akan dihapus secara permanen. Lanjutkan?`,
+  okText: 'Ya, Hapus',
+  okColor: 'var(--red)',
+});
+if (!ok) return;
   try {
     const { error } = await sb.from('divisions').delete().eq('id', id);
     if (error) throw error;
@@ -247,7 +254,14 @@ async function saveShift() {
 
 async function deleteShift(id) {
   const s = shifts.find(x => x.id===id);
-  if (!confirm(`Hapus shift "${s?.nama}"?`)) return;
+  const ok = await showConfirm({
+  icon: '🗑️',
+  title: 'Hapus Shift',
+  message: `Shift "${s?.nama}" akan dihapus secara permanen. Lanjutkan?`,
+  okText: 'Ya, Hapus',
+  okColor: 'var(--red)',
+});
+if (!ok) return;
   try {
     const { error } = await sb.from('shifts').delete().eq('id', id);
     if (error) throw error;
