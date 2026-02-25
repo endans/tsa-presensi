@@ -129,7 +129,14 @@ async function saveOffice() {
 async function deleteOffice(id) {
   const emp = employees.filter(e => e.office_id===id);
   if (emp.length > 0) { notify('⚠️',`${emp.length} karyawan masih ditugaskan di kantor ini.`,'orange'); return; }
-  if (!confirm('Hapus kantor ini?')) return;
+  const ok = await showConfirm({
+  icon: '🗑️',
+  title: 'Hapus Kantor',
+  message: 'Data kantor ini akan dihapus secara permanen. Lanjutkan?',
+  okText: 'Ya, Hapus',
+  okColor: 'var(--red)',
+});
+if (!ok) return;
   try {
     const { error } = await sb.from('offices').update({ is_active:false }).eq('id',id);
     if (error) throw error;
