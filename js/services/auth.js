@@ -167,7 +167,14 @@ async function loginAsEmployee(empId, pass, errEl) {
 // ============================================================
 
 async function doLogout() {
-  if (!confirm('Yakin ingin keluar?')) return;
+  const ok = await showConfirm({
+  icon: '↩️',
+  title: 'Keluar dari Akun',
+  message: 'Sesi Anda akan diakhiri. Yakin ingin keluar?',
+  okText: 'Ya, Keluar',
+  okColor: 'var(--accent)',
+});
+if (!ok) return;
   await sb.auth.signOut();
   currentUser = null; currentProfile = null; currentRole = null;
   employees = []; offices = []; absenRecords = [];
