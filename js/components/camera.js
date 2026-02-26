@@ -8,14 +8,14 @@
 function openCamera(type) {
   const empId    = document.getElementById('absenEmployee').value;
   const officeId = document.getElementById('absenOffice').value;
-  if (!empId)    { notify('⚠️','Pilih karyawan terlebih dahulu!','orange'); return; }
-  if (!officeId) { notify('⚠️','Pilih kantor terlebih dahulu!','orange'); return; }
+  if (!empId)    { notify('⚠️', 'Pilih karyawan terlebih dahulu!', 'orange'); return; }
+  if (!officeId) { notify('⚠️', 'Pilih kantor terlebih dahulu!', 'orange'); return; }
 
   currentAbsenType = type;
   _initCameraModal(type);
   capturedPhoto = null;
 
-  navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user' } })
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
     .then(stream => {
       videoStream = stream;
       document.getElementById('videoEl').srcObject = stream;
@@ -32,8 +32,23 @@ function openCamera(type) {
 
 function openCameraEmp(type) {
   if (!currentEmployee.office_id) {
-    notify('⚠️','Anda belum ditugaskan ke kantor manapun. Hubungi Admin.','orange'); return;
+    notify('⚠️', 'Anda belum ditugaskan ke kantor manapun. Hubungi Admin.', 'orange'); return;
   }
+
+  // FIX BUG absen ganda (lapisan UI) — cek status absen hari ini sebelum buka kamera
+  const today    = getLocalDateStr(); // helper dari employee-portal.js
+  const todayRec = empAbsenRecords.find(r => r.tanggal === today);
+
+  if (type === 'masuk' && todayRec?.masuk) {
+    notify('⚠️', 'Anda sudah melakukan absen masuk hari ini!', 'orange'); return;
+  }
+  if (type === 'keluar' && !todayRec?.masuk) {
+    notify('⚠️', 'Anda belum absen masuk. Lakukan absen masuk terlebih dahulu!', 'orange'); return;
+  }
+  if (type === 'keluar' && todayRec?.keluar) {
+    notify('⚠️', 'Anda sudah melakukan absen keluar hari ini!', 'orange'); return;
+  }
+
   empCurrentAbsenType = type;
   _initCameraModal(type);
   // Hanya reset empCapturedPhoto — jangan sentuh capturedPhoto (milik admin)
@@ -43,17 +58,17 @@ function openCameraEmp(type) {
   const needsKet = _empNeedsKeterangan(type);
   _toggleCameraKeterangan(needsKet, type);
 
-  navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user' } })
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
     .then(stream => {
+      // FIX BUG 9 — simpan stream ke empVideoStream dan videoStream secara konsisten
       empVideoStream = stream;
-      videoStream = stream;
+      videoStream    = stream;
       document.getElementById('videoEl').srcObject = stream;
     })
     .catch(() => {
       document.getElementById('cameraInfo').innerHTML =
         '⚠️ Kamera tidak tersedia, mode simulasi<br><a href="https://wa.me/6288989363401" target="_blank" style="color:#25D366;font-weight:700;font-size:12px;">Hubungi Service Desk →</a>';
       empCapturedPhoto = 'simulated';
-      // Tidak mengubah capturedPhoto (milik admin)
       document.getElementById('snapBtn').style.display = 'none';
       document.getElementById('confirmBtn').style.display = '';
     });
@@ -61,13 +76,13 @@ function openCameraEmp(type) {
 
 /** Inisialisasi tampilan modal kamera */
 function _initCameraModal(type) {
-  document.getElementById('absenType').textContent = type==='masuk' ? 'Masuk' : 'Keluar';
-  document.getElementById('cameraModal').style.display = 'flex';
-  document.getElementById('snapBtn').style.display = '';
-  document.getElementById('confirmBtn').style.display = 'none';
-  document.getElementById('photoPreview').style.display = 'none';
-  document.getElementById('videoEl').style.display = '';
-  document.getElementById('cameraInfo').textContent = '';
+  document.getElementById('absenType').textContent       = type === 'masuk' ? 'Masuk' : 'Keluar';
+  document.getElementById('cameraModal').style.display   = 'flex';
+  document.getElementById('snapBtn').style.display       = '';
+  document.getElementById('confirmBtn').style.display    = 'none';
+  document.getElementById('photoPreview').style.display  = 'none';
+  document.getElementById('videoEl').style.display       = '';
+  document.getElementById('cameraInfo').textContent      = '';
 }
 
 /** Cek apakah karyawan memerlukan keterangan (terlambat atau di luar radius) */
@@ -79,10 +94,9 @@ function _empNeedsKeterangan(type) {
     const dist = getDistance(empCurrentLocation.lat, empCurrentLocation.lon, parseFloat(off.lat), parseFloat(off.lon));
     outsideRadius = dist > off.radius;
   }
-  const now = new Date();
-  const [h, m] = settings.jamMasuk.split(':').map(Number);
-  const isLate = now.getHours() > h || (now.getHours() === h && now.getMinutes() > m + settings.toleransi);
-  return isLate || outsideRadius;
+  // FIX BUG 3 — gunakan isLateCheck() agar toleransi tidak overflow jika menit + toleransi > 59
+  const late = isLateCheck();
+  return late || outsideRadius;
 }
 
 /** Tampil/sembunyikan section keterangan di dalam modal kamera */
@@ -92,15 +106,14 @@ function _toggleCameraKeterangan(show, type) {
   ketSection.style.display = show ? '' : 'none';
   if (!show) return;
 
-  const off = currentEmployee?.offices;
+  const off     = currentEmployee?.offices;
   const reasons = [];
   if (off && empCurrentLocation) {
     const dist = getDistance(empCurrentLocation.lat, empCurrentLocation.lon, parseFloat(off.lat), parseFloat(off.lon));
     if (dist > off.radius) reasons.push('📍 Anda saat ini <strong>di luar radius area kantor</strong>');
   }
-  const now = new Date();
-  const [h, m] = settings.jamMasuk.split(':').map(Number);
-  if (now.getHours() > h || (now.getHours() === h && now.getMinutes() > m + settings.toleransi)) {
+  // FIX BUG 3 — gunakan isLateCheck()
+  if (isLateCheck()) {
     reasons.push('⏰ Anda <strong>terlambat</strong> dari jam masuk yang ditentukan');
   }
   document.getElementById('cameraKeteranganAlert').innerHTML =
@@ -139,20 +152,30 @@ async function capturePhoto() {
     capturedPhoto = photoData;
   }
 
-  document.getElementById('photoPreview').src = photoData;
-  document.getElementById('photoPreview').style.display = 'block';
-  document.getElementById('videoEl').style.display = 'none';
-  document.getElementById('snapBtn').style.display = 'none';
-  document.getElementById('confirmBtn').style.display = '';
+  document.getElementById('photoPreview').src            = photoData;
+  document.getElementById('photoPreview').style.display  = 'block';
+  document.getElementById('videoEl').style.display       = 'none';
+  document.getElementById('snapBtn').style.display       = 'none';
+  document.getElementById('confirmBtn').style.display    = '';
 }
 
 function closeCamera() {
-  if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; empVideoStream = null; }
+  // FIX BUG 9 — hentikan track dari empVideoStream secara eksplisit jika berbeda dari videoStream
+  if (empVideoStream && empVideoStream !== videoStream) {
+    empVideoStream.getTracks().forEach(t => t.stop());
+  }
+  if (videoStream) {
+    videoStream.getTracks().forEach(t => t.stop());
+    videoStream = null;
+  }
+  empVideoStream = null;
+
   document.getElementById('cameraModal').style.display = 'none';
   const ketSection = document.getElementById('cameraKeteranganSection');
   if (ketSection) ketSection.style.display = 'none';
   const ketInput = document.getElementById('cameraKeteranganInput');
   if (ketInput) ketInput.value = '';
+
   // Reset variable foto sesuai mode
   if (isEmployeeMode) {
     empCapturedPhoto = null;
