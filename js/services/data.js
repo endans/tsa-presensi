@@ -8,7 +8,7 @@ async function fetchSettings() {
   if (data) {
     settings.jamMasuk  = data.jam_masuk?.slice(0,5)  || '08:00';
     settings.jamKeluar = data.jam_keluar?.slice(0,5) || '17:00';
-    settings.toleransi = data.toleransi;
+    settings.toleransi = data.toleransi ?? 0;
     loadSettingsUI();
   }
 }
@@ -38,18 +38,18 @@ async function fetchAbsensi() {
     .limit(1000);
   if (!error) {
     absenRecords = (data||[]).map(r => ({
-      id:        r.id,
-      empId:     r.employee_id,
-      empNama:   r.employees?.nama   || '—',
-      divisi:    r.employees?.divisi || '—',
-      officeId:  r.office_id,
-      officeName:r.offices?.nama    || '—',
-      officeKota:r.offices?.kota    || '',
-      tanggal:   r.tanggal,
-      masuk:     r.masuk?.slice(0,5)  || '',
-      keluar:    r.keluar?.slice(0,5) || '',
-      status:    r.status,
-      selfie:    r.selfie_url,
+      id:         r.id,
+      empId:      r.employee_id,
+      empNama:    r.employees?.nama   || '—',
+      divisi:     r.employees?.divisi || '—',
+      officeId:   r.office_id,
+      officeName: r.offices?.nama    || '—',
+      officeKota: r.offices?.kota    || '',
+      tanggal:    r.tanggal,
+      masuk:      r.masuk?.slice(0,5)  || '',
+      keluar:     r.keluar?.slice(0,5) || '',
+      status:     r.status,
+      selfie:     r.selfie_url,
     }));
   }
 }
@@ -116,20 +116,51 @@ function subscribeRealtime() {
 
 // ---- Selfie Upload Helper ----
 
+/**
+ * Upload foto selfie ke Supabase Storage.
+ *
+ * PERUBAHAN PENTING:
+ * - Jika capturedPhotoData null, undefined, atau 'simulated' → THROW ERROR
+ *   sehingga proses absensi BERHENTI. Karyawan tidak bisa absen tanpa foto valid.
+ * - Jika upload gagal karena network/storage error → THROW ERROR juga,
+ *   agar absensi tidak tersimpan tanpa bukti selfie.
+ *
+ * @param {string} empId
+ * @param {string} dateStr  - format YYYY-MM-DD
+ * @param {string} type     - 'masuk' | 'keluar'
+ * @param {string|null} capturedPhotoData - base64 data URL foto
+ * @returns {Promise<string>} publicUrl foto yang terupload
+ * @throws {Error} jika foto tidak ada atau upload gagal
+ */
 async function uploadSelfie(empId, dateStr, type, capturedPhotoData) {
-  if (!capturedPhotoData || capturedPhotoData === 'simulated') return null;
+  // FIX: wajib ada foto — throw agar confirmAbsenEmp() masuk blok catch
+  if (!capturedPhotoData || capturedPhotoData === 'simulated') {
+    throw new Error('Foto selfie wajib diambil sebelum melakukan absensi!');
+  }
+
   try {
-    const blob = await (await fetch(capturedPhotoData)).blob();
+    const blob  = await (await fetch(capturedPhotoData)).blob();
     const fname = `${empId}/${dateStr}_${type}_${Date.now()}.jpg`;
-    const { data:up, error:upErr } = await sb.storage
+    const { data: up, error: upErr } = await sb.storage
       .from('selfies')
-      .upload(fname, blob, { contentType:'image/jpeg', upsert:false });
-    if (!upErr && up) {
-      const { data:ud } = sb.storage.from('selfies').getPublicUrl(fname);
-      return ud?.publicUrl || null;
+      .upload(fname, blob, { contentType: 'image/jpeg', upsert: false });
+
+    if (upErr) {
+      // FIX: upload gagal → throw, jangan diam-diam lanjut tanpa foto
+      throw new Error(`Upload foto gagal: ${upErr.message}`);
     }
-  } catch(e) { /* foto gagal upload tapi absen tetap lanjut */ }
-  return null;
+
+    const { data: ud } = sb.storage.from('selfies').getPublicUrl(fname);
+    if (!ud?.publicUrl) {
+      throw new Error('Gagal mendapatkan URL foto. Coba lagi.');
+    }
+
+    return ud.publicUrl;
+
+  } catch (e) {
+    // Re-throw agar pemanggil (confirmAbsenEmp) tahu ada error
+    throw e;
+  }
 }
 
 async function fetchImageAsBase64(url) {
