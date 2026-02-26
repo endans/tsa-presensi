@@ -21,6 +21,7 @@ function openCamera(type) {
       document.getElementById('videoEl').srcObject = stream;
     })
     .catch(() => {
+      // Admin tetap boleh mode simulasi (untuk input manual oleh admin)
       document.getElementById('cameraInfo').innerHTML = '⚠️ Kamera tidak tersedia, mode simulasi';
       capturedPhoto = 'simulated';
       document.getElementById('snapBtn').style.display = 'none';
@@ -35,8 +36,8 @@ function openCameraEmp(type) {
     notify('⚠️', 'Anda belum ditugaskan ke kantor manapun. Hubungi Admin.', 'orange'); return;
   }
 
-  // FIX BUG absen ganda (lapisan UI) — cek status absen hari ini sebelum buka kamera
-  const today    = getLocalDateStr(); // helper dari employee-portal.js
+  // Guard absen ganda — cek status absen hari ini sebelum buka kamera
+  const today    = getLocalDateStr();
   const todayRec = empAbsenRecords.find(r => r.tanggal === today);
 
   if (type === 'masuk' && todayRec?.masuk) {
@@ -51,7 +52,6 @@ function openCameraEmp(type) {
 
   empCurrentAbsenType = type;
   _initCameraModal(type);
-  // Hanya reset empCapturedPhoto — jangan sentuh capturedPhoto (milik admin)
   empCapturedPhoto = null;
 
   // Tampilkan keterangan inline jika terlambat atau di luar radius
@@ -60,17 +60,33 @@ function openCameraEmp(type) {
 
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
     .then(stream => {
-      // FIX BUG 9 — simpan stream ke empVideoStream dan videoStream secara konsisten
       empVideoStream = stream;
       videoStream    = stream;
       document.getElementById('videoEl').srcObject = stream;
     })
-    .catch(() => {
+    .catch((err) => {
+      // FIX: Karyawan TIDAK boleh absen tanpa kamera
+      // Foto selfie wajib sebagai bukti kehadiran — tidak ada mode simulasi untuk karyawan
+      console.warn('[openCameraEmp] Kamera tidak tersedia:', err?.message || err);
       document.getElementById('cameraInfo').innerHTML =
-        '⚠️ Kamera tidak tersedia, mode simulasi<br><a href="https://wa.me/6288989363401" target="_blank" style="color:#25D366;font-weight:700;font-size:12px;">Hubungi Service Desk →</a>';
-      empCapturedPhoto = 'simulated';
-      document.getElementById('snapBtn').style.display = 'none';
-      document.getElementById('confirmBtn').style.display = '';
+        '<div style="text-align:center;padding:16px;">' +
+          '<div style="font-size:36px;margin-bottom:8px;">📵</div>' +
+          '<div style="font-weight:700;color:var(--red);margin-bottom:6px;">Kamera Tidak Dapat Diakses</div>' +
+          '<div style="font-size:13px;color:var(--muted);margin-bottom:12px;">' +
+            'Izinkan akses kamera di browser Anda untuk melakukan absensi. ' +
+            'Foto selfie <strong>wajib</strong> sebagai bukti kehadiran.' +
+          '</div>' +
+          '<a href="https://wa.me/6288989363401" target="_blank" ' +
+            'style="display:inline-block;padding:8px 16px;background:#25D366;color:#fff;' +
+            'border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;">' +
+            '💬 Hubungi Service Desk' +
+          '</a>' +
+        '</div>';
+      // Sembunyikan kedua tombol — tidak ada jalan absen tanpa kamera
+      document.getElementById('snapBtn').style.display    = 'none';
+      document.getElementById('confirmBtn').style.display = 'none';
+      // empCapturedPhoto tetap null — jika confirmAbsenEmp() entah bagaimana dipanggil,
+      // uploadSelfie() akan throw error dan absensi tidak akan tersimpan
     });
 }
 
@@ -94,9 +110,8 @@ function _empNeedsKeterangan(type) {
     const dist = getDistance(empCurrentLocation.lat, empCurrentLocation.lon, parseFloat(off.lat), parseFloat(off.lon));
     outsideRadius = dist > off.radius;
   }
-  // FIX BUG 3 — gunakan isLateCheck() agar toleransi tidak overflow jika menit + toleransi > 59
-  const late = isLateCheck();
-  return late || outsideRadius;
+  // Gunakan isLateCheck() agar toleransi tidak overflow jika menit + toleransi > 59
+  return isLateCheck() || outsideRadius;
 }
 
 /** Tampil/sembunyikan section keterangan di dalam modal kamera */
@@ -112,7 +127,6 @@ function _toggleCameraKeterangan(show, type) {
     const dist = getDistance(empCurrentLocation.lat, empCurrentLocation.lon, parseFloat(off.lat), parseFloat(off.lon));
     if (dist > off.radius) reasons.push('📍 Anda saat ini <strong>di luar radius area kantor</strong>');
   }
-  // FIX BUG 3 — gunakan isLateCheck()
   if (isLateCheck()) {
     reasons.push('⏰ Anda <strong>terlambat</strong> dari jam masuk yang ditentukan');
   }
@@ -160,7 +174,7 @@ async function capturePhoto() {
 }
 
 function closeCamera() {
-  // FIX BUG 9 — hentikan track dari empVideoStream secara eksplisit jika berbeda dari videoStream
+  // Hentikan track dari empVideoStream secara eksplisit jika berbeda dari videoStream
   if (empVideoStream && empVideoStream !== videoStream) {
     empVideoStream.getTracks().forEach(t => t.stop());
   }
