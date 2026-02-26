@@ -352,7 +352,7 @@ async function confirmAbsenEmp() {
       const selfieUrl = await uploadSelfie(emp.id, dateStr, empCurrentAbsenType, empCapturedPhoto);
 
       const { error } = await sb.from('absensi')
-        .update({ keluar: timeStr, keterangan_keluar: keterangan, selfie_keluar_url: selfieUrl })
+        .update({ keluar: timeStr, keterangan_keluar: keterangan})
         .eq('employee_id', emp.id)
         .eq('tanggal', dateStr);
       if (error) throw error;
