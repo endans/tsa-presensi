@@ -4,19 +4,57 @@
 // ============================================================
 
 // ============================================================
+// SESSION STORAGE KEYS — untuk persist employee login saat refresh
+// ============================================================
+const EMP_SESSION_KEY = 'tsa_emp_session';
+
+function saveEmpSession(emp) {
+  try { sessionStorage.setItem(EMP_SESSION_KEY, JSON.stringify(emp)); } catch(e) {}
+}
+function clearEmpSession() {
+  try { sessionStorage.removeItem(EMP_SESSION_KEY); } catch(e) {}
+}
+function loadEmpSession() {
+  try { const d = sessionStorage.getItem(EMP_SESSION_KEY); return d ? JSON.parse(d) : null; } catch(e) { return null; }
+}
+
+// ============================================================
 // BOOT — dipanggil saat halaman pertama kali load
 // ============================================================
 
 async function boot() {
   try {
+    // Cek Supabase Auth session (admin/employee login via email)
     const { data:{ session } } = await sb.auth.getSession();
     if (session) {
       currentUser = session.user;
       await loadProfile();
-      // Routing berdasarkan role — inisialisasi berbeda tiap role
       await routeByRole();
     } else {
-      showLogin();
+      // Cek employee session yang disimpan (login via ID Karyawan)
+      const savedEmp = loadEmpSession();
+      if (savedEmp) {
+        // Re-validasi ke database untuk memastikan akun masih aktif
+        const { data, error } = await sb
+          .from('employees')
+          .select('*, offices(id,nama,kota,lat,lon,radius,alamat)')
+          .eq('id', savedEmp.id)
+          .eq('is_active', true)
+          .limit(1);
+        if (!error && data && data.length > 0) {
+          isEmployeeMode  = true;
+          currentEmployee = data[0];
+          currentRole     = 'employee';
+          saveEmpSession(data[0]); // refresh data terbaru
+          await initEmpPortal();
+          showEmpPortal();
+        } else {
+          clearEmpSession();
+          showLogin();
+        }
+      } else {
+        showLogin();
+      }
     }
   } catch(e) {
     console.error('[boot] Error:', e);
@@ -24,6 +62,17 @@ async function boot() {
   }
   document.getElementById('loadingOverlay').style.display = 'none';
 }
+
+// ============================================================
+// AUTH STATE CHANGE — handle session expire otomatis
+// ============================================================
+sb.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT' && currentUser) {
+    currentUser = null; currentProfile = null; currentRole = null;
+    employees = []; offices = []; absenRecords = [];
+    showLogin();
+  }
+});
 
 // ============================================================
 // LOAD PROFILE — ambil data dari tabel profiles
@@ -85,6 +134,7 @@ async function _initAsEmployee() {
 
   isEmployeeMode  = true;
   currentEmployee = data[0];
+  saveEmpSession(data[0]); // persist agar tidak logout saat refresh
   await initEmpPortal();
   showEmpPortal();
 }
@@ -157,6 +207,7 @@ async function loginAsEmployee(empId, pass, errEl) {
   isEmployeeMode  = true;
   currentEmployee = emp;
   currentRole     = 'employee';
+  saveEmpSession(emp); // persist agar tidak logout saat refresh
   await initEmpPortal();
   showEmpPortal();
   notify('✅', `Selamat datang, ${emp.nama}!`, 'green');
@@ -192,6 +243,7 @@ async function doLogoutEmp() {
 if (!ok) return;
   // Jika employee login via Supabase Auth (email), sign out juga
   if (currentUser) await sb.auth.signOut();
+  clearEmpSession(); // hapus session tersimpan
   isEmployeeMode  = false;
   currentEmployee = null;
   currentUser     = null;
