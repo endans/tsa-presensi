@@ -9,13 +9,21 @@
 const EMP_SESSION_KEY = 'tsa_emp_session';
 
 function saveEmpSession(emp) {
-  try { sessionStorage.setItem(EMP_SESSION_KEY, JSON.stringify(emp)); } catch(e) {}
+  try {
+    localStorage.setItem(EMP_SESSION_KEY, JSON.stringify(emp));
+  } catch(e) {}
 }
 function clearEmpSession() {
-  try { sessionStorage.removeItem(EMP_SESSION_KEY); } catch(e) {}
+  try {
+    localStorage.removeItem(EMP_SESSION_KEY);
+  } catch(e) {}
 }
 function loadEmpSession() {
-  try { const d = sessionStorage.getItem(EMP_SESSION_KEY); return d ? JSON.parse(d) : null; } catch(e) { return null; }
+  try {
+    const d = localStorage.getItem(EMP_SESSION_KEY);
+    // Tidak ada batas waktu — sesi bertahan sampai user logout manual
+    return d ? JSON.parse(d) : null;
+  } catch(e) { return null; }
 }
 
 // ============================================================

@@ -70,8 +70,17 @@ async function initEmpPortal() {
 
   // Greeting
   const hour  = now.getHours();
-  const greet = hour < 12 ? 'Selamat Pagi' : hour < 15 ? 'Selamat Siang' : hour < 18 ? 'Selamat Sore' : 'Selamat Malam';
-  document.getElementById('empGreeting').textContent = `${greet}, ${emp.nama || 'Karyawan'}! Semoga hari Anda menyenangkan.`;
+  const greetMap = hour < 12
+    ? { text: 'Selamat Pagi', icon: '🌅' }
+    : hour < 15
+    ? { text: 'Selamat Siang', icon: '☀️' }
+    : hour < 18
+    ? { text: 'Selamat Sore', icon: '🌤️' }
+    : { text: 'Selamat Malam', icon: '🌙' };
+  const greet = greetMap.text;
+  const greetEl = document.getElementById('empGreetingTime');
+  if (greetEl) greetEl.textContent = `${greetMap.icon} ${greet}`;
+  document.getElementById('empGreeting').textContent = `Halo, ${emp.nama || 'Karyawan'}! 👋`;
 
   // Fetch data
   await fetchEmpAbsenRecords();

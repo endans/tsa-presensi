@@ -126,7 +126,7 @@ function refreshDivisiDropdowns() {
   const filterOpt = '<option value="">Semua Divisi</option>' + opts;
   const empOpt    = '<option value="">— Pilih Divisi —</option>' + opts;
 
-  ['rekapDivisi','exportDivisi'].forEach(id => {
+  ['rekapDivisi','exportDivisi','zipDivisi'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const cur = el.value;

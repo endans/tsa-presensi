@@ -18,6 +18,7 @@ async function initApp() {
   document.getElementById('previewMonth').value = today.slice(0,7);
   document.getElementById('pdfMonth').value     = today.slice(0,7);
   document.getElementById('exportMonth').value  = today.slice(0,7);
+  document.getElementById('zipMonth').value     = today.slice(0,7);
 
   startClock();
   await Promise.all([
@@ -243,4 +244,5 @@ function populateAllDropdowns() {
   setOpts('exportOffice',    '<option value="">Semua Kantor</option>'     + officeOpts);
   setOpts('pdfOffice',       '<option value="">Semua Kantor</option>'     + officeOpts);
   setOpts('previewOffice',   '<option value="">Semua Kantor</option>'     + officeOpts);
+  setOpts('zipOffice',       '<option value="">Semua Kantor</option>'     + officeOpts);
 }
