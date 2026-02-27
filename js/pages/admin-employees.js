@@ -16,20 +16,26 @@ function renderEmployees() {
     const recs       = absenRecords.filter(r => r.empId===emp.id);
     const officeName = emp.offices?.nama || '—';
     return `<div class="emp-card">
-      <div class="emp-avatar">${emp.nama[0]}</div>
-      <div style="flex:1;">
-        <div class="emp-name">${emp.nama}</div>
-        <div class="emp-role">${emp.jabatan||'—'} • ${emp.divisi}</div>
-        <div class="emp-office">🏢 ${officeName}</div>
-        ${emp.employee_id ? `<div class="emp-id-badge">${emp.employee_id}</div>` : ''}
-        <div class="emp-stats">
-          <div class="emp-stat-item"><span>${recs.length}</span>Kehadiran</div>
-          <div class="emp-stat-item"><span>${recs.filter(r=>r.status==='Terlambat').length}</span>Terlambat</div>
+      <div class="emp-avatar" style="width:42px;height:42px;font-size:16px;flex-shrink:0;">${emp.nama[0]}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
+          <div style="min-width:0;">
+            <div class="emp-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${emp.nama}</div>
+            <div class="emp-role">${emp.jabatan||'—'} · ${emp.divisi}</div>
+            <div class="emp-office" style="font-size:10px;margin-top:3px;">🏢 ${officeName}</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;">
+            <button class="btn-icon-edit" onclick="editEmployee('${emp.id}')" title="Edit">✏️</button>
+            <button class="btn-icon-del" onclick="deleteEmployee('${emp.id}')" title="Hapus">🗑️</button>
+          </div>
         </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        <button class="btn btn-sm btn-outline" onclick="editEmployee('${emp.id}')" style="padding:6px 12px;font-size:11px;">✏️</button>
-        <button class="btn btn-sm btn-red" onclick="deleteEmployee('${emp.id}')" style="padding:6px 12px;font-size:11px;">🗑️</button>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+          ${emp.employee_id ? `<div class="emp-id-badge">${emp.employee_id}</div>` : ''}
+          <div style="display:flex;gap:10px;margin-left:auto;">
+            <div class="emp-stat-item"><span>${recs.length}</span>Hadir</div>
+            <div class="emp-stat-item"><span>${recs.filter(r=>r.status==='Terlambat').length}</span>Lambat</div>
+          </div>
+        </div>
       </div>
     </div>`;
   }).join('') || '<p style="color:var(--muted);text-align:center;padding:40px;">Tidak ada karyawan ditemukan.</p>';

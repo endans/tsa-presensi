@@ -80,13 +80,13 @@ function renderRecentActivity() {
   if (!el) return;
   const recent = [...absenRecords].sort((a,b)=>b.tanggal.localeCompare(a.tanggal)).slice(0,5);
   el.innerHTML = recent.map(r=>`
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div class="avatar" style="width:32px;height:32px;font-size:12px;border-radius:8px;">${(r.empNama||'?')[0]}</div>
-      <div>
-        <div style="font-size:13px;font-weight:600;">${r.empNama}</div>
-        <div style="font-size:11px;color:var(--muted);">${r.officeName} • ${r.masuk} • ${r.tanggal}</div>
+    <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+      <div class="avatar" style="width:30px;height:30px;font-size:11px;border-radius:8px;flex-shrink:0;">${(r.empNama||'?')[0]}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.empNama}</div>
+        <div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.officeName} · ${r.masuk||'—'}</div>
       </div>
-      <div style="margin-left:auto;">${statusBadge(r.status)}</div>
+      <div style="flex-shrink:0;">${statusBadge(r.status)}</div>
     </div>`).join('');
 }
 

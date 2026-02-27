@@ -504,16 +504,26 @@ tr:hover td { background: var(--accent-lighter); }
 .office-actions { display: flex; gap: 8px; margin-top: 16px; }
 
 /* ── EMPLOYEE CARDS ── */
-.emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 16px; }
+.emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 12px; }
 .emp-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--r-md); padding: 20px;
-  display: flex; gap: 16px; align-items: flex-start;
+  border-radius: var(--r-md); padding: 14px 16px;
+  display: flex; gap: 12px; align-items: flex-start;
   box-shadow: var(--shadow);
   transition: box-shadow .18s, transform .18s;
 }
 .emp-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+/* Icon action buttons inside emp card */
+.btn-icon-edit, .btn-icon-del {
+  width: 30px; height: 30px; border-radius: var(--r-sm);
+  border: 1px solid var(--border); cursor: pointer;
+  font-size: 13px; display: flex; align-items: center; justify-content: center;
+  transition: all .13s; background: var(--surface2);
+}
+.btn-icon-edit:hover { background: var(--accent-light); border-color: var(--accent-mid); }
+.btn-icon-del:hover  { background: var(--red-light); border-color: var(--red); }
 .emp-avatar {
   width: 48px; height: 48px; border-radius: var(--r-sm);
   background: linear-gradient(135deg, var(--accent), #818cf8);
@@ -680,6 +690,40 @@ tr:hover td { background: var(--accent-lighter); }
 .wa-help-btn:hover { background: #1ebe5d; transform: translateY(-2px); box-shadow: 0 6px 24px rgba(37,211,102,.45); }
 .wa-help-btn svg { width: 20px; height: 20px; fill: #fff; flex-shrink: 0; }
 
+/* ── ABSENSI FILTER BAR ── */
+.absensi-filter-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.absensi-filter-selects {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.absensi-filter-selects .form-control {
+  width: auto; padding: 7px 12px; font-size: 12px;
+}
+
+/* ── REKAP FILTER BAR ── */
+.rekap-filter-bar {
+  display: flex; align-items: flex-end; gap: 10px;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.rekap-filters {
+  display: flex; gap: 8px; flex: 1; flex-wrap: wrap;
+}
+.rekap-filters .form-control { flex: 1; min-width: 120px; font-size: 13px; }
+.rekap-filter-btn { flex-shrink: 0; }
+
+/* ── KARYAWAN TOOLBAR ── */
+.karyawan-toolbar {
+  display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; align-items: center;
+}
+.karyawan-search { flex: 1; min-width: 160px; }
+.karyawan-filter { width: auto; min-width: 140px; }
+.karyawan-add-btn { flex-shrink: 0; }
+
+/* ── SETTINGS JAM GRID ── */
+.settings-jam-grid { grid-template-columns: 1fr 1fr; gap: 16px; }
+
 /* ── RESPONSIVE ── */
 @media(max-width:768px) {
   .sidebar { display: none!important; }
@@ -687,49 +731,84 @@ tr:hover td { background: var(--accent-lighter); }
   .bottom-nav { display: block; }
   .main-content { margin-left: 0; padding: 12px 12px 80px; }
 
-  /* ── Cards & Layout ── */
+  /* ── Dashboard ── */
   .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-value { font-size: 22px; }
+  .stat-label { font-size: 9px; }
+  .stat-sub   { font-size: 9px; }
+  .stat-icon  { font-size: 20px; }
+  /* Stack chart & recent activity vertically */
+  .dash-grid-main { grid-template-columns: 1fr!important; gap: 12px!important; }
+
+  /* ── Absensi filter ── */
+  .absensi-filter-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .absensi-filter-selects { flex-direction: column; }
+  .absensi-filter-selects .form-control { width: 100%; }
+
+  /* ── Rekap ── */
+  .rekap-filter-bar { flex-direction: column; align-items: stretch; }
+  .rekap-filters { flex-direction: column; }
+  .rekap-filters .form-control { width: 100%; min-width: unset; }
+  .rekap-filter-btn { width: 100%; }
+
+  /* ── Karyawan toolbar ── */
+  .karyawan-toolbar { flex-direction: column; }
+  .karyawan-search, .karyawan-filter, .karyawan-add-btn { width: 100%; }
+
+  /* ── Employee cards ── */
+  .emp-grid { grid-template-columns: 1fr; gap: 8px; }
+  .emp-card { padding: 12px 14px; }
+
+  /* ── Settings ── */
+  .settings-jam-grid { grid-template-columns: 1fr!important; }
   .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
-  .office-grid, .emp-grid { grid-template-columns: 1fr; }
-  .card { padding: 16px; border-radius: var(--r-md); }
+  .setting-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+  .setting-tab { flex-shrink: 0; font-size: 10px; padding: 9px 12px; }
 
-  /* ── Employee Absen Card ── */
-  .emp-absen-card { padding: 20px 16px; border-radius: var(--r-lg); margin-bottom: 12px; }
-  .emp-clock { font-size: 40px; letter-spacing: -1px; }
-  .emp-date { font-size: 12px; margin-bottom: 12px; }
-
-  /* ── Absen buttons: side-by-side always ── */
-  .absen-btn-large { grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-  .absen-btn-large .btn { padding: 14px 8px; font-size: 13px; border-radius: var(--r-md); }
-
-  /* ── Week grid ── */
-  .emp-week-grid-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  #empWeekGrid { min-width: 320px; }
-
-  /* ── Status badge ── */
-  .status-badge { font-size: 11px; padding: 5px 12px; }
+  /* ── Cards & Layout ── */
+  .card { padding: 14px; border-radius: var(--r-md); }
+  .office-grid { grid-template-columns: 1fr; }
 
   /* ── Page header ── */
   .page-header { flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
   .page-header h2 { font-size: 17px; }
-  .page-header p { font-size: 12px; }
+  .page-header p  { font-size: 11px; }
   .page-header .btn, .page-header .btn-sm { width: 100%; }
-  .stat-value { font-size: 22px; }
+
+  /* ── Laporan grid ── */
+  #page-laporan > div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr!important; }
+  #page-laporan .card [style*="grid-template-columns:1fr 1fr 1fr auto"] { grid-template-columns: 1fr 1fr!important; }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  table { font-size: 11px; min-width: 480px; }
+  td, th { padding: 8px 8px; }
+
+  /* ── Content tabs ── */
+  .content-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .content-tab { flex-shrink: 0; font-size: 11px; padding: 9px 14px; }
 
   /* ── Modals ── */
-  .modal-box { padding: 20px 16px; border-radius: var(--r-lg); margin: 0 8px; max-height: 92vh; }
+  .modal-box { padding: 16px; border-radius: var(--r-lg); margin: 0 8px; max-height: 92vh; }
   .modal-actions { flex-direction: column; }
   .modal-actions .btn { width: 100%; }
 
   /* ── Camera ── */
-  .camera-box { padding: 16px; border-radius: var(--r-lg); width: calc(100vw - 32px); max-width: 100%; }
-  .camera-btns { flex-direction: column; gap: 10px; }
-  .camera-btns .btn { width: 100%; padding: 14px; }
+  .camera-box { padding: 14px; width: calc(100vw - 24px); max-width: 100%; }
+  .camera-btns { flex-direction: column; gap: 8px; }
+  .camera-btns .btn { width: 100%; padding: 13px; }
 
-  /* ── Table ── */
-  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
-  table { font-size: 12px; min-width: 480px; }
-  td, th { padding: 9px 10px; }
+  /* ── Employee portal ── */
+  .emp-absen-card { padding: 18px 14px; border-radius: var(--r-lg); margin-bottom: 12px; }
+  .emp-clock { font-size: 38px; letter-spacing: -1px; }
+  .emp-date { font-size: 11px; margin-bottom: 12px; }
+  .absen-btn-large { grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .absen-btn-large .btn { padding: 14px 8px; font-size: 13px; }
+  .emp-week-grid-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #empWeekGrid { min-width: 320px; }
+  .emp-portal-hero { padding: 16px 14px; margin-bottom: 12px; }
+  .emp-portal-hero h2 { font-size: 17px; }
+  .status-badge { font-size: 11px; padding: 5px 12px; }
 
   /* ── Leave ── */
   .leave-type-grid { gap: 8px; }
@@ -738,46 +817,36 @@ tr:hover td { background: var(--accent-lighter); }
   .leave-actions { align-self: stretch; flex-direction: row; flex-wrap: wrap; }
   .leave-actions .btn-sm { flex: 1; min-width: 80px; }
 
-  /* ── Nav & Buttons ── */
-  .nav-item { padding: 11px 16px; font-size: 14px; }
+  /* ── Buttons ── */
   .btn-sm { padding: 9px 14px; font-size: 12px; }
   .filter-bar { flex-direction: column; align-items: stretch; }
   .filter-bar select, .filter-bar input, .filter-bar .btn, .filter-bar .btn-sm { width: 100%; }
 
   /* ── History summary ── */
   #empHistorySummary { grid-template-columns: 1fr 1fr!important; gap: 8px!important; }
-
-  /* ── Profil ── */
   #page-emp-profil > div { grid-template-columns: 1fr!important; }
 
-  /* ── Setting tabs ── */
-  .setting-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; padding-bottom: 2px; }
-  .setting-tab { flex-shrink: 0; }
-
-  /* ── WA button ── */
-  .wa-help-btn { bottom: 80px; right: 16px; padding: 12px 14px; font-size: 12px; }
-
-  /* ── Bottom nav ── */
+  /* ── WA & bottom nav ── */
+  .wa-help-btn { bottom: 80px; right: 12px; padding: 11px 13px; font-size: 11px; }
   .bottom-nav-item .bn-label { font-size: 9px; }
-
-  /* ── Hero section ── */
-  .emp-portal-hero { padding: 18px 16px; margin-bottom: 12px; }
-  .emp-portal-hero h2 { font-size: 17px; }
 }
 
 @media(max-width:400px) {
   .main-content { padding: 10px 10px 80px; }
-  .stat-grid { grid-template-columns: 1fr; gap: 8px; }
-  .stat-value { font-size: 20px; }
-  .emp-clock { font-size: 34px; }
-  .emp-portal-hero { padding: 14px 12px; }
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .stat-value { font-size: 18px; }
+  .stat-icon  { font-size: 18px; }
+  .emp-clock { font-size: 32px; }
+  .emp-portal-hero { padding: 12px; }
   .emp-portal-hero h2 { font-size: 15px; }
-  .login-card { padding: 28px 16px; }
-  .absen-btn-large { gap: 8px; }
-  .absen-btn-large .btn { padding: 13px 6px; font-size: 12px; }
+  .login-card { padding: 24px 14px; }
+  .absen-btn-large .btn { padding: 12px 6px; font-size: 12px; }
+  .emp-absen-card { padding: 14px 12px; }
+  .card { padding: 12px; }
   .bottom-nav-item .bn-label { font-size: 8px; letter-spacing: .3px; }
-  .emp-absen-card { padding: 16px 12px; }
   #empHistorySummary { grid-template-columns: 1fr 1fr!important; }
+  .karyawan-toolbar { gap: 8px; }
+  .rekap-filter-bar { gap: 8px; }
 }
 
 /* ── SETTINGS TABS ── */

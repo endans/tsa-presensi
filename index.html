@@ -155,18 +155,18 @@
         <div class="stat-card red"><div class="stat-label">Belum Hadir</div><div class="stat-value" id="statAbsen">-</div><div class="stat-sub">Belum absen</div><div class="stat-icon">⏰</div></div>
         <div class="stat-card purple"><div class="stat-label">Kantor Cabang</div><div class="stat-value" id="statKantor">-</div><div class="stat-sub">Lokasi aktif</div><div class="stat-icon">🏢</div></div>
       </div>
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;">
+      <div class="dash-grid-main" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;">
         <div class="card">
-          <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;color:var(--text);">📈 Kehadiran 7 Hari Terakhir</h3>
+          <h3 style="font-size:13px;font-weight:800;margin-bottom:14px;color:var(--text);letter-spacing:.3px;">📈 Kehadiran 7 Hari Terakhir</h3>
           <div class="chart-wrap" id="chartWrap"></div>
         </div>
         <div class="card">
-          <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;color:var(--text);">🔔 Absen Terbaru</h3>
-          <div id="recentActivity" style="display:flex;flex-direction:column;gap:12px;"></div>
+          <h3 style="font-size:13px;font-weight:800;margin-bottom:14px;color:var(--text);letter-spacing:.3px;">🔔 Absen Terbaru</h3>
+          <div id="recentActivity" style="display:flex;flex-direction:column;gap:10px;"></div>
         </div>
       </div>
-      <div class="card" style="margin-top:20px;">
-        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;color:var(--text);">📋 Rekap Hari Ini per Kantor</h3>
+      <div class="card" style="margin-top:16px;">
+        <h3 style="font-size:13px;font-weight:800;margin-bottom:14px;color:var(--text);letter-spacing:.3px;">📋 Rekap Hari Ini</h3>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Nama</th><th>Kantor</th><th>Masuk</th><th>Keluar</th><th>Status</th></tr></thead>
@@ -180,13 +180,13 @@
     <div class="page" id="page-absensi">
       <div class="page-header"><h2>Absensi</h2><p>Rekap data absensi seluruh karyawan</p></div>
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <h3 style="font-size:15px;font-weight:700;">📅 Riwayat Absensi</h3>
-          <div style="display:flex;gap:8px;">
-            <select id="historyEmployee" onchange="renderMyHistory()" class="form-control" style="width:auto;padding:6px 12px;font-size:13px;">
+        <div class="absensi-filter-bar">
+          <h3 style="font-size:13px;font-weight:800;color:var(--text);white-space:nowrap;">📅 Riwayat Absensi</h3>
+          <div class="absensi-filter-selects">
+            <select id="historyEmployee" onchange="renderMyHistory()" class="form-control">
               <option value="">Semua Karyawan</option>
             </select>
-            <select id="historyOffice" onchange="renderMyHistory()" class="form-control" style="width:auto;padding:6px 12px;font-size:13px;">
+            <select id="historyOffice" onchange="renderMyHistory()" class="form-control">
               <option value="">Semua Kantor</option>
             </select>
           </div>
@@ -208,15 +208,17 @@
         <div class="content-tab" onclick="switchRekapTab('mingguan')">Mingguan</div>
         <div class="content-tab" onclick="switchRekapTab('bulanan')">Bulanan</div>
       </div>
-      <div class="filter-bar">
-        <input type="date" id="rekapDate" onchange="renderRekap()">
-        <select id="rekapDivisi" onchange="renderRekap()">
-          <option value="">Semua Divisi</option>
-        </select>
-        <select id="rekapOffice" onchange="renderRekap()">
-          <option value="">Semua Kantor</option>
-        </select>
-        <button class="btn btn-sm" onclick="renderRekap()">🔍 Filter</button>
+      <div class="rekap-filter-bar">
+        <div class="rekap-filters">
+          <input type="date" id="rekapDate" onchange="renderRekap()" class="form-control">
+          <select id="rekapDivisi" onchange="renderRekap()" class="form-control">
+            <option value="">Semua Divisi</option>
+          </select>
+          <select id="rekapOffice" onchange="renderRekap()" class="form-control">
+            <option value="">Semua Kantor</option>
+          </select>
+        </div>
+        <button class="btn btn-sm btn-outline rekap-filter-btn" onclick="renderRekap()">🔍 Filter</button>
       </div>
       <div class="card">
         <div class="table-wrap">
@@ -250,12 +252,12 @@
     <!-- KARYAWAN -->
     <div class="page" id="page-karyawan">
       <div class="page-header"><h2>Manajemen Karyawan</h2><p>Kelola data karyawan dan penugasan kantor</p></div>
-      <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;align-items:center;">
-        <input class="form-control" style="max-width:280px;" type="text" placeholder="🔍 Cari karyawan..." id="searchEmp" oninput="renderEmployees()">
-        <select id="filterEmpOffice" onchange="renderEmployees()" class="form-control" style="width:auto;">
+      <div class="karyawan-toolbar">
+        <input class="form-control karyawan-search" type="text" placeholder="🔍 Cari karyawan..." id="searchEmp" oninput="renderEmployees()">
+        <select id="filterEmpOffice" onchange="renderEmployees()" class="form-control karyawan-filter">
           <option value="">Semua Kantor</option>
         </select>
-        <button class="btn btn-sm" onclick="showAddEmpModal()">+ Tambah Karyawan</button>
+        <button class="btn btn-sm karyawan-add-btn" onclick="showAddEmpModal()">+ Tambah Karyawan</button>
       </div>
       <div class="emp-grid" id="empGrid"></div>
     </div>
@@ -427,7 +429,7 @@
 
       <!-- TAB: JAM KERJA -->
       <div class="setting-page active" id="stab-jam">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="form-grid settings-jam-grid">
           <div class="card">
             <h3 style="font-size:16px;font-weight:700;margin-bottom:20px;">🕐 Jam Kerja</h3>
             <div class="form-group"><label>Jam Masuk</label><input class="form-control" type="time" id="setJamMasuk" value="08:00"></div>
