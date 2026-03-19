@@ -1,1 +1,1244 @@
-ASU
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f0f4ff">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+<title>TSA Presence — Sistem Kehadiran Digital</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<!-- External Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<!-- App Config -->
+<script src="config.js"></script>
+
+<!-- App CSS -->
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <p>Menghubungkan ke database...</p>
+</div>
+
+<button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <div class="login-card">
+    <div class="logo-wrap">
+      <img src="assets/logo.svg" alt="Logo Perusahaan" style="width:160px;height:auto;margin-bottom:12px;">
+      <h1>Sistem Absensi Digital</h1>
+      <p>PT. Tujuh Sinar Abadi</p>
+    </div>
+
+    <div class="form-group">
+      <label>ID Karyawan</label>
+      <input class="form-control" id="loginIdentifier" type="text" placeholder="Masukan ID karyawan" onkeydown="if(event.key==='Enter')doLoginUnified()" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input class="form-control" id="loginPassUnified" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLoginUnified()">
+    </div>
+    <div class="login-error" id="loginError"></div>
+    <button class="btn" onclick="doLoginUnified()" id="loginBtn">🔐 Masuk</button>
+
+    <!-- Tombol Install PWA — otomatis muncul/hilang -->
+    <button id="pwaInstallBtn" onclick="triggerPwaInstall()" style="
+      display: none;
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border, #e2e8f8);
+      background: var(--surface2, #f7f9ff);
+      color: var(--accent, #2563eb);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s, border-color 0.15s;
+    " onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='var(--surface2,#f7f9ff)'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 20h14"/>
+      </svg>
+      Install Aplikasi
+    </button>
+
+    <p class="login-hint"> Masuk dengan ID Karyawan (misal <span style="font-family:'JetBrains Mono',monospace;font-weight:700;">TSA-2604-XXX</span>)<br>IT Support &nbsp;|&nbsp; PT Tujuh Sinar Abadi</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MAIN APP — ADMIN/HRD MODE -->
+<!-- ============================================================ -->
+<div id="mainApp">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <img src="assets/logo-white.svg" alt="Logo" style="width:130px;height:auto;">
+    </div>
+    <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span> Dashboard</div>
+    <div class="nav-item" data-page="absensi" onclick="showPage('absensi')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span> Absensi</div>
+    <div class="nav-item" data-page="rekap" onclick="showPage('rekap')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></span> Rekap Kehadiran</div>
+    <div class="nav-section">Manajemen</div>
+    <div class="nav-item" data-page="kantor" onclick="showPage('kantor')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18M3 7l9-4 9 4M4 21V7m16 14V7M9 21v-4a1 1 0 011-1h4a1 1 0 011 1v4"/></svg></span> Kantor Cabang</div>
+    <div class="nav-item" data-page="karyawan" onclick="showPage('karyawan')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span> Karyawan</div>
+    <div class="nav-item" data-page="laporan" onclick="showPage('laporan')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> Laporan &amp; Export</div>
+    <div class="nav-section">Sistem</div>
+    <div class="nav-item" data-page="persetujuan" onclick="showPage('persetujuan')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span> Persetujuan Izin</div>
+    <div class="nav-item" data-page="pengaturan" onclick="showPage('pengaturan')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span> Pengaturan</div>
+    <div class="nav-item" data-page="bantuan" onclick="showPage('bantuan')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> Bantuan</div>
+    <div class="sidebar-footer">
+      <div class="user-card" onclick="doLogout()" style="cursor:pointer;" title="Keluar">
+        <div class="avatar" id="sidebarAvatar">A</div>
+        <div class="user-info">
+          <div class="name" id="sidebarName">Admin</div>
+          <div class="role" id="sidebarRole">Super Admin</div>
+        </div>
+        <span style="margin-left:auto;color:var(--muted);font-size:12px;">↩ Keluar</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- BOTTOM NAV: ADMIN (mobile) -->
+  <div class="bottom-nav" id="adminBottomNav">
+    <div class="bottom-nav-inner">
+      <button class="bottom-nav-item active" id="bnadmin-dashboard" data-page="dashboard" onclick="showPage('dashboard');setAdminBottomActive('dashboard')">
+        <span class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span><span class="bn-label">Dashboard</span>
+      </button>
+      <button class="bottom-nav-item" id="bnadmin-absensi" data-page="absensi" onclick="showPage('absensi');setAdminBottomActive('absensi')">
+        <span class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span><span class="bn-label">Absensi</span>
+      </button>
+      <button class="bottom-nav-item" id="bnadmin-rekap" data-page="rekap" onclick="showPage('rekap');setAdminBottomActive('rekap')">
+        <span class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></span><span class="bn-label">Rekap</span>
+      </button>
+      <button class="bottom-nav-item" id="bnadmin-karyawan" data-page="karyawan" onclick="showPage('karyawan');setAdminBottomActive('karyawan')">
+        <span class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span><span class="bn-label">Karyawan</span>
+      </button>
+      <button class="bottom-nav-item" id="bnadmin-more" onclick="toggleAdminMoreMenu()">
+        <span class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span><span class="bn-label">Lainnya</span>
+      </button>
+    </div>
+  </div>
+  <div class="bottom-more-overlay" id="adminMoreOverlay" onclick="closeAdminMoreMenu()"></div>
+  <div class="bottom-more-menu" id="adminMoreMenu">
+    <div class="bottom-more-item" id="bnmore-laporan" data-page="laporan" onclick="showPage('laporan');setAdminBottomActive('laporan');closeAdminMoreMenu()"><span class="bmi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> Laporan &amp; Export</div>
+    <div class="bottom-more-item" id="bnmore-kantor" data-page="kantor" onclick="showPage('kantor');setAdminBottomActive('kantor');closeAdminMoreMenu()"><span class="bmi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18M3 7l9-4 9 4M4 21V7m16 14V7M9 21v-4a1 1 0 011-1h4a1 1 0 011 1v4"/></svg></span> Kantor Cabang</div>
+    <div class="bottom-more-item" id="bnmore-persetujuan" data-page="persetujuan" onclick="showPage('persetujuan');setAdminBottomActive('persetujuan');closeAdminMoreMenu()"><span class="bmi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span> Persetujuan Izin</div>
+    <div class="bottom-more-item" id="bnmore-pengaturan" data-page="pengaturan" onclick="showPage('pengaturan');setAdminBottomActive('pengaturan');closeAdminMoreMenu()"><span class="bmi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span> Pengaturan</div>
+    <div class="bottom-more-item" id="bnmore-bantuan" data-page="bantuan" onclick="showPage('bantuan');setAdminBottomActive('bantuan');closeAdminMoreMenu()"><span class="bmi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> Bantuan</div>
+    <div class="bottom-more-item" onclick="doLogout();closeAdminMoreMenu()" style="color:var(--red);border-top:1px solid var(--border);margin-top:4px;"><span class="bmi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span> Keluar</div>
+  </div>
+
+  <main class="main-content">
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <p id="dashDate">Selamat datang!</p>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card blue"><div class="stat-label">Total Karyawan</div><div class="stat-value" id="statTotal">-</div><div class="stat-sub">Aktif terdaftar</div><div class="stat-icon">👥</div></div>
+        <div class="stat-card green"><div class="stat-label">Hadir Hari Ini</div><div class="stat-value" id="statHadir">-</div><div class="stat-sub">Sudah absen</div><div class="stat-icon">✅</div></div>
+        <div class="stat-card red"><div class="stat-label">Belum Hadir</div><div class="stat-value" id="statAbsen">-</div><div class="stat-sub">Belum absen</div><div class="stat-icon">⏰</div></div>
+        <div class="stat-card purple"><div class="stat-label">Kantor Cabang</div><div class="stat-value" id="statKantor">-</div><div class="stat-sub">Lokasi aktif</div><div class="stat-icon">🏢</div></div>
+      </div>
+      <div class="dash-grid-main" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;">
+        <div class="card">
+          <h3 style="font-size:13px;font-weight:800;margin-bottom:14px;color:var(--text);letter-spacing:.3px;">📈 Kehadiran 7 Hari Terakhir</h3>
+          <div class="chart-wrap" id="chartWrap"></div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:13px;font-weight:800;margin-bottom:14px;color:var(--text);letter-spacing:.3px;">🔔 Absen Terbaru</h3>
+          <div id="recentActivity" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px;">
+        <h3 style="font-size:13px;font-weight:800;margin-bottom:14px;color:var(--text);letter-spacing:.3px;">📋 Rekap Hari Ini</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nama</th><th>Kantor</th><th>Masuk</th><th>Keluar</th><th>Status</th></tr></thead>
+            <tbody id="todayTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABSENSI (ADMIN) -->
+    <div class="page" id="page-absensi">
+      <div class="page-header"><h2>Absensi</h2><p>Rekap data absensi seluruh karyawan</p></div>
+      <div class="card">
+        <div class="absensi-filter-bar">
+          <h3 style="font-size:13px;font-weight:800;color:var(--text);white-space:nowrap;">📅 Riwayat Absensi</h3>
+          <div class="absensi-filter-selects">
+            <select id="historyEmployee" onchange="renderMyHistory()" class="form-control">
+              <option value="">Semua Karyawan</option>
+            </select>
+            <select id="historyOffice" onchange="renderMyHistory()" class="form-control">
+              <option value="">Semua Kantor</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Karyawan</th><th>Kantor</th><th>Tanggal</th><th>Masuk</th><th>Keluar</th><th>Durasi</th><th>Foto</th><th>Status</th></tr></thead>
+            <tbody id="myHistoryTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- REKAP -->
+    <div class="page" id="page-rekap">
+      <div class="page-header"><h2>Rekap Kehadiran</h2><p>Lihat rekap per hari, minggu, dan bulan</p></div>
+      <div class="content-tabs">
+        <div class="content-tab active" onclick="switchRekapTab('harian')">Harian</div>
+        <div class="content-tab" onclick="switchRekapTab('mingguan')">Mingguan</div>
+        <div class="content-tab" onclick="switchRekapTab('bulanan')">Bulanan</div>
+      </div>
+      <div class="rekap-filter-bar">
+        <div class="rekap-filters">
+          <input type="date" id="rekapDate" onchange="renderRekap()" class="form-control">
+          <select id="rekapDivisi" onchange="renderRekap()" class="form-control">
+            <option value="">Semua Divisi</option>
+          </select>
+          <select id="rekapOffice" onchange="renderRekap()" class="form-control">
+            <option value="">Semua Kantor</option>
+          </select>
+        </div>
+        <button class="btn btn-sm btn-outline rekap-filter-btn" onclick="renderRekap()">🔍 Filter</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Karyawan</th><th>Divisi</th><th>Kantor</th><th>Total Hadir</th><th>Terlambat</th><th>Absen</th><th>% Kehadiran</th></tr></thead>
+            <tbody id="rekapTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- KANTOR CABANG -->
+    <div class="page" id="page-kantor">
+      <div class="page-header"><h2>Kantor Cabang</h2><p>Kelola semua lokasi kantor dan pengaturan geofencing-nya</p></div>
+      <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;align-items:center;">
+        <input class="form-control" style="max-width:280px;" type="text" placeholder="🔍 Cari kantor..." id="searchOffice" oninput="renderOffices()">
+        <button class="btn btn-sm btn-purple" onclick="showAddOfficeModal()">+ Tambah Kantor</button>
+      </div>
+      <div class="office-grid" id="officeGrid"></div>
+      <div class="card" style="margin-top:24px;">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">📊 Kehadiran per Kantor Hari Ini</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Kantor</th><th>Kota</th><th>Total Karyawan</th><th>Hadir</th><th>Absen</th><th>% Kehadiran</th></tr></thead>
+            <tbody id="officeStatsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- KARYAWAN -->
+    <div class="page" id="page-karyawan">
+      <div class="page-header"><h2>Manajemen Karyawan</h2><p>Kelola data karyawan dan penugasan kantor</p></div>
+      <div class="karyawan-toolbar">
+        <input class="form-control karyawan-search" type="text" placeholder="🔍 Cari karyawan..." id="searchEmp" oninput="renderEmployees()">
+        <select id="filterEmpOffice" onchange="renderEmployees()" class="form-control karyawan-filter">
+          <option value="">Semua Kantor</option>
+        </select>
+        <button class="btn btn-sm karyawan-add-btn" onclick="showAddEmpModal()">+ Tambah Karyawan</button>
+      </div>
+      <div class="emp-grid" id="empGrid"></div>
+    </div>
+
+    <!-- LAPORAN -->
+    <div class="page" id="page-laporan">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2>Laporan &amp; Export</h2>
+          <p>Unduh laporan kehadiran dalam format Excel, PDF, atau foto selfie terpisah</p>
+        </div>
+      </div>
+
+      <!-- Row 1: Excel + PDF side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
+        <!-- Excel Export (no photos) -->
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+            <div style="width:36px;height:36px;background:var(--green-light);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid rgba(16,185,129,.2);">📊</div>
+            <div>
+              <div style="font-size:14px;font-weight:800;">Export Excel</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:1px;">Data absensi tanpa foto (ringan & cepat)</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Kantor</label>
+            <select class="form-control" id="exportOffice"><option value="">Semua Kantor</option></select>
+          </div>
+          <div class="form-group">
+            <label>Divisi</label>
+            <select class="form-control" id="exportDivisi"><option value="">Semua Divisi</option></select>
+          </div>
+          <div class="form-group">
+            <label>Bulan</label>
+            <input class="form-control" type="month" id="exportMonth">
+          </div>
+          <button class="btn btn-green btn-sm" onclick="exportExcel()" id="exportExcelBtn" style="width:100%;">
+            ⬇️ Unduh Excel (.xlsx)
+          </button>
+          <p style="font-size:10px;color:var(--muted);margin-top:8px;">File Excel berisi 2 sheet: Detail Absensi &amp; Rekap per Karyawan. Foto tidak disertakan.</p>
+        </div>
+
+        <!-- PDF Export -->
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+            <div style="width:36px;height:36px;background:var(--orange-light);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid rgba(245,158,11,.2);">📑</div>
+            <div>
+              <div style="font-size:14px;font-weight:800;">Export PDF</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:1px;">Laporan siap cetak dengan opsi foto</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Bulan &amp; Tahun</label>
+            <input class="form-control" type="month" id="pdfMonth">
+          </div>
+          <div class="form-group">
+            <label>Kantor</label>
+            <select class="form-control" id="pdfOffice"><option value="">Semua Kantor</option></select>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:12px;cursor:pointer;font-weight:600;">
+            <input type="checkbox" id="pdfWithPhoto" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent);">
+            Sertakan foto selfie karyawan
+          </label>
+          <button class="btn btn-orange btn-sm" onclick="exportPDF()" id="exportPdfBtn" style="width:100%;">
+            ⬇️ Generate PDF
+          </button>
+          <p style="font-size:10px;color:var(--muted);margin-top:8px;">⚠️ Dengan foto: proses lebih lama tergantung jumlah data.</p>
+        </div>
+      </div>
+
+      <!-- Row 2: ZIP Photo Download (full width) -->
+      <div class="card" style="margin-bottom:16px;border-color:rgba(99,102,241,0.25);background:linear-gradient(135deg,rgba(99,102,241,0.03) 0%,var(--card) 60%);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+          <div style="width:36px;height:36px;background:var(--accent-light);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid rgba(99,102,241,.2);">🗜️</div>
+          <div>
+            <div style="font-size:14px;font-weight:800;">Unduh Foto Selfie (ZIP)</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:1px;">Foto dikelompokkan per karyawan dalam folder terpisah, dikompres menjadi satu file ZIP</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Bulan</label>
+            <input class="form-control" type="month" id="zipMonth">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Kantor</label>
+            <select class="form-control" id="zipOffice"><option value="">Semua Kantor</option></select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Divisi</label>
+            <select class="form-control" id="zipDivisi"><option value="">Semua Divisi</option></select>
+          </div>
+          <div>
+            <button class="btn btn-sm" onclick="exportPhotoZip()" id="exportZipBtn" style="background:linear-gradient(135deg,var(--accent),var(--accent-mid));color:#fff;white-space:nowrap;width:100%;">
+              📦 Unduh ZIP Foto
+            </button>
+          </div>
+        </div>
+        <!-- Progress bar -->
+        <div id="zipProgressWrap" style="display:none;margin-top:16px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:12px;font-weight:600;color:var(--text);" id="zipProgressLabel">Mengunduh foto...</span>
+            <span style="font-size:12px;font-weight:700;color:var(--accent);" id="zipProgressPct">0%</span>
+          </div>
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div id="zipProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-mid));border-radius:3px;transition:width .2s;"></div>
+          </div>
+          <p style="font-size:11px;color:var(--muted);margin-top:6px;" id="zipProgressSub"></p>
+        </div>
+        <p style="font-size:10px;color:var(--muted);margin-top:12px;line-height:1.6;">
+          Contoh: 10 karyawan → 10 folder (nama karyawan) → dikompres menjadi <code>Foto_Absensi_2025-01.zip</code>. Setiap foto diberi nama: <code>NAMA_YYYY-MM-DD_masuk.jpg</code>
+        </p>
+      </div>
+
+      <!-- Preview Data -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <div style="font-size:14px;font-weight:800;">📋 Preview Data</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="month" id="previewMonth" onchange="renderPreview()" class="form-control" style="width:auto;">
+            <select id="previewOffice" onchange="renderPreview()" class="form-control" style="width:auto;"><option value="">Semua Kantor</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Foto</th><th>Nama</th><th>Kantor</th><th>Tanggal</th><th>Masuk</th><th>Keluar</th><th>Durasi</th><th>Status</th></tr></thead>
+            <tbody id="previewTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PERSETUJUAN IZIN -->
+    <div class="page" id="page-persetujuan">
+      <div class="page-header"><h2>Persetujuan Izin & Cuti</h2><p>Kelola pengajuan izin dan cuti karyawan</p></div>
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+        <select id="filterLeaveStatus" onchange="renderLeaveRequests()" class="form-control" style="width:auto;">
+          <option value="">Semua Status</option>
+          <option value="Menunggu">Menunggu</option>
+          <option value="Disetujui">Disetujui</option>
+          <option value="Ditolak">Ditolak</option>
+        </select>
+        <select id="filterLeaveType" onchange="renderLeaveRequests()" class="form-control" style="width:auto;">
+          <option value="">Semua Jenis</option>
+          <option value="Izin">Izin</option>
+          <option value="Cuti">Cuti</option>
+          <option value="Sakit">Sakit</option>
+        </select>
+        <button class="btn btn-sm" onclick="fetchLeaveRequests().then(renderLeaveRequests)">🔄 Refresh</button>
+      </div>
+      <div id="leaveRequestList">
+        <p style="text-align:center;color:var(--muted);padding:60px;">Memuat data...</p>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PENGATURAN — FIX: semua setting tabs ada di dalam page ini  -->
+    <!-- ============================================================ -->
+    <div class="page" id="page-pengaturan">
+      <div class="page-header"><h2>Pengaturan</h2><p>Konfigurasi global sistem absensi</p></div>
+
+      <div class="setting-tabs">
+        <div class="setting-tab active" onclick="switchSettingTab('jam')">🕐 Jam Kerja</div>
+        <div class="setting-tab" onclick="switchSettingTab('divisi')">🏷️ Divisi</div>
+        <div class="setting-tab" onclick="switchSettingTab('shift')">🔄 Shift Kerja</div>
+        <div class="setting-tab" id="setting-tab-users" onclick="switchSettingTab('users')" style="display:none;">👥 Manajemen User</div>
+      </div>
+
+      <!-- TAB: JAM KERJA -->
+      <div class="setting-page active" id="stab-jam">
+        <div class="form-grid settings-jam-grid">
+          <div class="card">
+            <h3 style="font-size:16px;font-weight:700;margin-bottom:20px;">🕐 Jam Kerja</h3>
+            <div class="form-group"><label>Jam Masuk</label><input class="form-control" type="time" id="setJamMasuk" value="08:00"></div>
+            <div class="form-group"><label>Jam Keluar</label><input class="form-control" type="time" id="setJamKeluar" value="17:00"></div>
+            <div class="form-group"><label>Toleransi Keterlambatan (menit)</label><input class="form-control" type="number" id="setToleransi" value="15" min="0" max="120"></div>
+            <button class="btn btn-sm" onclick="saveSettings()">💾 Simpan Pengaturan</button>
+          </div>
+          <div class="card">
+            <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;">🏢 Kantor & Geofencing</h3>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Koordinat dan radius diatur per kantor cabang.</p>
+            <button class="btn btn-sm btn-purple" onclick="showPage('kantor')">→ Kelola Kantor Cabang</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: DIVISI -->
+      <div class="setting-page" id="stab-divisi">
+        <div class="card">
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:6px;">🏷️ Manajemen Divisi</h3>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Divisi yang ditambahkan di sini akan muncul sebagai pilihan saat menambah karyawan.</p>
+
+          <div class="divisi-list" id="divisiList">
+            <p style="color:var(--muted);font-size:13px;">Memuat divisi...</p>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+
+          <h4 style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;" id="divisiFormTitle">+ Tambah Divisi Baru</h4>
+          <div style="display:flex;gap:10px;align-items:flex-end;">
+            <div class="form-group" style="flex:1;margin:0;">
+              <input class="form-control" id="newDivisiName" placeholder="Nama divisi baru..." onkeydown="if(event.key==='Enter')saveDivisi()">
+              <input type="hidden" id="editDivisiId">
+            </div>
+            <button class="btn btn-sm" onclick="saveDivisi()" id="saveDivisiBtn" style="flex-shrink:0;">💾 Simpan</button>
+            <button class="btn btn-sm btn-outline" onclick="cancelEditDivisi()" id="cancelDivisiBtn" style="display:none;flex-shrink:0;">Batal</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: SHIFT KERJA — FIX: sekarang di dalam page-pengaturan -->
+      <div class="setting-page" id="stab-shift">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div>
+              <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">🔄 Manajemen Shift Kerja</h3>
+              <p style="font-size:13px;color:var(--muted);">Buat dan kelola jadwal shift. Karyawan dapat ditugaskan ke shift tertentu.</p>
+            </div>
+            <button class="btn btn-sm btn-purple" onclick="showShiftModal()">+ Tambah Shift</button>
+          </div>
+          <div id="shiftList">
+            <p style="color:var(--muted);font-size:13px;text-align:center;padding:32px;">Memuat data shift...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: MANAJEMEN USER (Main Admin only) -->
+      <div class="setting-page" id="stab-users">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div>
+              <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">👥 Manajemen User Admin</h3>
+              <p style="font-size:13px;color:var(--muted);">Tambahkan atau cabut akses role Admin untuk pengguna terdaftar.</p>
+            </div>
+            <button class="btn btn-sm btn-purple" onclick="showAddAdminModal()">+ Tambah Admin</button>
+          </div>
+          <div id="adminUserList">
+            <p style="color:var(--muted);font-size:13px;text-align:center;padding:32px;">Memuat data user...</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--accent);">🔐 Panduan Role</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+            <div style="padding:12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+              <div style="font-weight:700;margin-bottom:4px;">🟢 Employee</div>
+              <div style="font-size:12px;color:var(--muted);">Hanya akses portal karyawan (absensi, riwayat, profil).</div>
+            </div>
+            <div style="padding:12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+              <div style="font-weight:700;margin-bottom:4px;">🔵 Admin</div>
+              <div style="font-size:12px;color:var(--muted);">Dashboard, absensi, rekap, laporan, persetujuan izin.</div>
+            </div>
+            <div style="padding:12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+              <div style="font-weight:700;margin-bottom:4px;">🟣 Main Admin</div>
+              <div style="font-size:12px;color:var(--muted);">Akses penuh termasuk karyawan, kantor cabang, dan pengaturan sistem.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end page-pengaturan -->
+
+    <!-- MODAL: BUAT / UBAH ROLE USER ADMIN -->
+    <div id="addAdminModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;">
+      <div style="background:var(--surface);border-radius:16px;padding:28px;width:min(440px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <h3 style="font-size:16px;font-weight:800;margin-bottom:20px;" id="addAdminModalTitle">👥 Buat Akun Admin Baru</h3>
+
+        <div class="form-group" id="adminNameGroup">
+          <label>Nama Lengkap <span style="color:var(--red)">*</span></label>
+          <input class="form-control" id="adminUserName" type="text" placeholder="Nama Admin">
+        </div>
+
+        <div class="form-group">
+          <label>Email <span style="color:var(--red)">*</span></label>
+          <input class="form-control" id="adminUserEmail" type="email" placeholder="admin@tsa.org">
+        </div>
+
+        <div class="form-group" id="adminPassGroup">
+          <label>Password <span style="color:var(--red)">*</span></label>
+          <div style="position:relative;">
+            <input class="form-control" id="adminUserPass" type="password" placeholder="Min. 6 karakter" style="padding-right:40px;">
+            <button type="button" onclick="const i=document.getElementById('adminUserPass');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;" title="Tampilkan">👁</button>
+          </div>
+          <p style="font-size:11px;color:var(--muted);margin-top:4px;">Admin menggunakan email + password ini untuk login.</p>
+        </div>
+
+        <div class="form-group">
+          <label>Role</label>
+          <select class="form-control" id="adminUserRole">
+            <option value="admin">Admin</option>
+            <option value="main_admin">Main Administrator</option>
+            <option value="employee">Employee (cabut akses admin)</option>
+          </select>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:20px;">
+          <button class="btn" onclick="saveAdminUser()" style="flex:1;" id="saveAdminUserBtn">💾 Simpan</button>
+          <button class="btn btn-outline" onclick="closeAddAdminModal()" style="flex:1;">Batal</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BANTUAN ADMIN -->
+    <div class="page" id="page-bantuan">
+      <div class="page-header"><h2>Bantuan</h2><p>Panduan penggunaan sistem dan kontak Service Desk</p></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <h3 style="font-size:13px;font-weight:800;margin-bottom:16px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);">Kontak Service Desk</h3>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.7;">Untuk kendala teknis sistem, konfigurasi, atau masalah akun admin, hubungi Service Desk via WhatsApp.</p>
+          <a href="https://wa.me/6288989363401?text=Halo%20Service%20Desk%2C%20saya%20admin%20TSA%20Presence%20dan%20memerlukan%20bantuan%20teknis." target="_blank" style="display:inline-flex;align-items:center;gap:10px;background:#25D366;color:#fff;padding:13px 20px;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none;box-shadow:0 4px 16px rgba(37,211,102,.35);margin-bottom:16px;width:100%;justify-content:center;box-sizing:border-box;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            Chat via WhatsApp
+          </a>
+          <div style="padding:12px;background:var(--accent-lighter);border-radius:8px;border:1px solid var(--border);">
+            <p style="font-size:11px;color:var(--muted);">Nomor: <strong style="color:var(--text);font-family:'JetBrains Mono',monospace;">+62 889-8936-3401</strong></p>
+            <p style="font-size:11px;color:var(--muted);margin-top:4px;">Jam: Senin–Jumat, 08.00–17.00 WIB</p>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:13px;font-weight:800;margin-bottom:16px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);">Panduan Admin Cepat</h3>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="faq-item">
+              <h4>Menyetujui izin/cuti karyawan?</h4>
+              <p>Buka <strong>Persetujuan Izin</strong>. Klik Setujui atau Tolak pada setiap pengajuan.</p>
+            </div>
+            <div class="faq-item">
+              <h4>Export laporan ke Excel/PDF?</h4>
+              <p>Buka <strong>Laporan & Export</strong>, pilih bulan dan kantor, lalu klik tombol Download.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- end page-bantuan admin -->
+
+  </main>
+</div><!-- end mainApp -->
+
+<!-- ============================================================ -->
+<!-- EMPLOYEE PORTAL -->
+<!-- ============================================================ -->
+<div id="empPortal" style="display:none;min-height:100vh;background:var(--bg);">
+  <aside class="sidebar" id="sidebarEmp">
+    <div class="sidebar-logo">
+      <img src="assets/logo-white.svg" alt="Logo" style="width:130px;height:auto;">
+    </div>
+    <div class="nav-section">Portal Karyawan</div>
+    <div class="nav-item active" data-page="emp-absensi" onclick="showEmpPage('emp-absensi')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></span> Absensi Saya</div>
+    <div class="nav-item" data-page="emp-riwayat" onclick="showEmpPage('emp-riwayat')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span> Riwayat Kehadiran</div>
+    <div class="nav-item" data-page="emp-izin" onclick="showEmpPage('emp-izin')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></span> Izin / Cuti</div>
+    <div class="nav-item" data-page="emp-profil" onclick="showEmpPage('emp-profil')"><span class="nav-dot"></span><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> Profil Saya</div>
+    <div class="sidebar-footer">
+      <div class="user-card" onclick="showEmpPage('emp-profil')" style="cursor:pointer;" title="Profil Saya">
+        <div class="avatar red-avatar" id="sidebarEmpAvatar">K</div>
+        <div class="user-info">
+          <div class="name" id="sidebarEmpName">Karyawan</div>
+          <div class="role" id="sidebarEmpId">ID: —</div>
+        </div>
+        <span style="margin-left:auto;color:var(--muted);font-size:12px;">👤</span>
+      </div>
+      <div style="margin-top:8px;">
+        <button onclick="doLogoutEmp()" class="btn btn-outline btn-sm" style="width:100%;color:var(--red);border-color:var(--red);font-size:13px;">↩ Keluar</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- BOTTOM NAV: EMPLOYEE (mobile) -->
+  <div class="bottom-nav" id="empBottomNav" style="display:none;">
+    <div class="bottom-nav-inner">
+      <button class="bottom-nav-item active" id="bnemp-emp-absensi" onclick="showEmpPage('emp-absensi');setEmpBottomActive('emp-absensi')">
+        <span class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></span><span class="bn-label">Absen</span>
+      </button>
+      <button class="bottom-nav-item" id="bnemp-emp-riwayat" onclick="showEmpPage('emp-riwayat');setEmpBottomActive('emp-riwayat')">
+        <span class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span><span class="bn-label">Riwayat</span>
+      </button>
+      <button class="bottom-nav-item" id="bnemp-emp-izin" onclick="showEmpPage('emp-izin');setEmpBottomActive('emp-izin')">
+        <span class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></span><span class="bn-label">Izin</span>
+      </button>
+      <button class="bottom-nav-item" id="bnemp-emp-profil" onclick="showEmpPage('emp-profil');setEmpBottomActive('emp-profil')">
+        <span class="bn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="bn-label">Profil</span>
+      </button>
+    </div>
+  </div>
+
+  <main class="main-content">
+
+    <!-- EMP: ABSENSI -->
+    <div class="page active" id="page-emp-absensi">
+
+      <!-- Hero greeting bar -->
+      <div class="emp-portal-hero" style="margin-bottom:14px;">
+        <div class="greeting-time" id="empGreetingTime">🌅 Selamat Pagi</div>
+        <h2 id="empGreeting">Selamat datang!</h2>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <div id="empStatusBadge" class="status-badge belum" style="display:inline-flex;"><span class="dot"></span> Belum Absen</div>
+        </div>
+      </div>
+
+      <!-- Clock card -->
+      <div class="emp-absen-card">
+        <div class="emp-clock" id="empClock">00:00:00</div>
+        <div class="emp-date" id="empDateDisplay"></div>
+
+        <!-- Location -->
+        <div style="max-width:100%;margin:0 auto 14px;">
+          <div class="location-card">
+            <div class="location-icon">📡</div>
+            <div class="location-info">
+              <div class="addr" id="empLocationAddr">Mendapatkan lokasi...</div>
+              <div class="coords" id="empLocationCoords">lat: --, lon: --</div>
+            </div>
+            <div id="empGeofenceStatus" style="font-size:11px;font-weight:700;color:var(--muted);flex-shrink:0;">🔄</div>
+          </div>
+        </div>
+
+        <!-- Absen buttons -->
+        <div class="absen-btn-large">
+          <button class="btn btn-green" onclick="openCameraEmp('masuk')" id="empBtnMasuk">
+            <span style="display:block;font-size:20px;margin-bottom:4px;">🟢</span>
+            Absen Masuk
+          </button>
+          <button class="btn btn-red" onclick="openCameraEmp('keluar')" id="empBtnKeluar">
+            <span style="display:block;font-size:20px;margin-bottom:4px;">🔴</span>
+            Absen Keluar
+          </button>
+        </div>
+
+        <div id="empTodayInfo" style="margin-top:14px;font-size:12px;color:var(--muted);"></div>
+      </div>
+
+      <!-- Week grid -->
+      <div class="card">
+        <h3 style="font-size:13px;font-weight:800;margin-bottom:14px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-secondary);">📆 Absensi Minggu Ini</h3>
+        <div class="emp-week-grid-wrapper">
+          <div id="empWeekGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMP: RIWAYAT -->
+    <div class="page" id="page-emp-riwayat">
+      <div class="page-header"><h2>Riwayat Kehadiran</h2><p>Data kehadiran Anda dalam 30 hari terakhir</p></div>
+      <div class="card">
+        <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+          <input type="month" id="empHistoryMonth" onchange="renderEmpHistory()" class="form-control" style="width:auto;">
+          <button class="btn btn-sm" onclick="renderEmpHistory()">🔍 Tampilkan</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;" id="empHistorySummary"></div>
+        <div id="empHistoryList"></div>
+      </div>
+    </div>
+
+    <!-- EMP: IZIN / CUTI -->
+    <div class="page" id="page-emp-izin">
+      <div class="page-header"><h2>Izin / Cuti</h2><p>Ajukan permohonan izin, cuti, atau sakit</p></div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">📝 Ajukan Permohonan Baru</h3>
+
+        <div class="form-group">
+          <label>Jenis Permohonan</label>
+          <div class="leave-type-grid">
+            <div class="leave-type-btn selected" id="lt-izin" onclick="selectLeaveType('Izin')">
+              <span class="lt-icon">🌤️</span>
+              <span class="lt-label">Izin</span>
+            </div>
+            <div class="leave-type-btn" id="lt-cuti" onclick="selectLeaveType('Cuti')">
+              <span class="lt-icon">🏖️</span>
+              <span class="lt-label">Cuti</span>
+            </div>
+            <div class="leave-type-btn" id="lt-sakit" onclick="selectLeaveType('Sakit')">
+              <span class="lt-icon">🏥</span>
+              <span class="lt-label">Sakit</span>
+            </div>
+          </div>
+          <input type="hidden" id="leaveType" value="Izin">
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tanggal Mulai <span style="color:var(--red)">*</span></label>
+            <input class="form-control" type="date" id="leaveStart">
+          </div>
+          <div class="form-group">
+            <label>Tanggal Selesai <span style="color:var(--red)">*</span></label>
+            <input class="form-control" type="date" id="leaveEnd">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Keterangan / Alasan <span style="color:var(--red)">*</span></label>
+          <textarea class="form-control" id="leaveReason" rows="3" placeholder="Tuliskan alasan pengajuan izin/cuti Anda..." style="resize:vertical;"></textarea>
+        </div>
+
+        <div style="display:flex;gap:12px;">
+          <button class="btn btn-sm" onclick="submitLeaveRequest()" id="submitLeaveBtn">📤 Kirim Permohonan</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">📋 Riwayat Pengajuan Saya</h3>
+        <div id="empLeaveHistory">
+          <p style="text-align:center;color:var(--muted);padding:32px;">Belum ada pengajuan.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMP: PROFIL -->
+    <div class="page" id="page-emp-profil">
+      <div class="page-header"><h2>Profil Saya</h2><p>Informasi data karyawan Anda</p></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;">
+            <div class="emp-avatar" id="profilAvatar" style="width:72px;height:72px;font-size:28px;border-radius:20px;">K</div>
+            <div>
+              <div style="font-size:20px;font-weight:800;" id="profilNama">—</div>
+              <div style="color:var(--muted);font-size:13px;margin-top:4px;" id="profilJabatan">—</div>
+              <div class="emp-id-badge" id="profilEmpId" style="margin-top:8px;">ID: —</div>
+            </div>
+          </div>
+          <div style="display:grid;gap:12px;">
+            <div style="display:flex;justify-content:space-between;padding:12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+              <span style="font-size:13px;color:var(--muted);font-weight:600;">Divisi</span>
+              <span style="font-size:13px;font-weight:700;" id="profilDivisi">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+              <span style="font-size:13px;color:var(--muted);font-weight:600;">Kantor</span>
+              <span style="font-size:13px;font-weight:700;" id="profilKantor">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+              <span style="font-size:13px;color:var(--muted);font-weight:600;">Telepon</span>
+              <span style="font-size:13px;font-weight:700;" id="profilTelepon">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+              <span style="font-size:13px;color:var(--muted);font-weight:600;">Bergabung Sejak</span>
+              <span style="font-size:13px;font-weight:700;" id="profilJoin">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+              <span style="font-size:13px;color:var(--muted);font-weight:600;">Email</span>
+              <span style="font-size:13px;font-weight:700;" id="profilEmail">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">📊 Statistik Bulan Ini</h3>
+          <div style="display:grid;gap:12px;" id="empStats"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px;border-color:rgba(220,38,38,.2);">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <p style="font-size:14px;font-weight:700;color:var(--text);">Keluar dari Akun</p>
+            <p style="font-size:12px;color:var(--muted);margin-top:2px;">Sesi Anda akan berakhir dan kembali ke halaman login.</p>
+          </div>
+          <button class="btn btn-red btn-sm" onclick="doLogoutEmp()" style="flex-shrink:0;margin-left:20px;">Keluar</button>
+        </div>
+      </div>      
+      <!-- BANTUAN SECTION MOVED HERE -->
+      <div class="help-section">
+        <div style="margin-bottom:16px;padding-top:4px;">
+          <h3 style="font-size:14px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:4px;">Bantuan & Dukungan</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7;">Jika Anda mengalami kendala teknis seperti tidak bisa absen, kamera tidak berfungsi, atau masalah akun, hubungi Service Desk melalui WhatsApp.</p>
+            <a href="https://wa.me/6288989363401?text=Halo%20Tim%20IT%2C%20saya%20memerlukan%20bantuan%20terkait%20aplikasi%20absensi%20TSA%20Presence." target="_blank" style="display:inline-flex;align-items:center;gap:10px;background:#25D366;color:#fff;padding:13px 20px;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none;box-shadow:0 4px 16px rgba(37,211,102,.35);transition:all .2s;width:100%;justify-content:center;box-sizing:border-box;margin-bottom:14px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+              Chat via WhatsApp
+            </a>
+            <div style="padding:12px;background:var(--accent-lighter);border-radius:8px;border:1px solid var(--border);">
+              <p style="font-size:11px;color:var(--muted);">Nomor: <strong style="color:var(--text);font-family:'JetBrains Mono',monospace;">+62 889-8936-3401</strong></p>
+              <p style="font-size:11px;color:var(--muted);margin-top:4px;">Jam: Senin–Jumat, 08.00–17.00 WIB</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      
+    </div><!-- end page-emp-profil -->
+
+  </main>
+</div><!-- end empPortal -->
+
+<!-- ===== MODAL: KANTOR ===== -->
+<div class="modal-overlay" id="officeModal">
+  <div class="modal-box">
+    <div class="modal-title" id="officeModalTitle">Tambah Kantor Cabang</div>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>Nama Kantor <span style="color:var(--red)">*</span></label>
+        <input class="form-control" id="officeName" placeholder="Kantor Pusat / Cabang Bandung">
+      </div>
+      <div class="form-group">
+        <label>Kota <span style="color:var(--red)">*</span></label>
+        <input class="form-control" id="officeKota" placeholder="Jakarta Pusat">
+      </div>
+      <div class="form-group">
+        <label>Radius Geofencing (meter)</label>
+        <input class="form-control" type="number" id="officeRadius" value="100" min="50" max="5000">
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>Alamat Lengkap <span style="color:var(--red)">*</span></label>
+        <input class="form-control" id="officeAlamat" placeholder="Jl. Sudirman No. 1, Jakarta Pusat">
+      </div>
+    </div>
+    <hr class="section-divider">
+    <h4 style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;">📍 Koordinat GPS</h4>
+    <div class="form-grid">
+      <div class="form-group coord-group">
+        <label>Latitude <span style="color:var(--red)">*</span></label>
+        <input class="form-control" id="officeLat" placeholder="-6.2088" type="number" step="0.000001">
+        <p class="coord-hint">Negatif = Belahan Bumi Selatan</p>
+      </div>
+      <div class="form-group coord-group">
+        <label>Longitude <span style="color:var(--red)">*</span></label>
+        <input class="form-control" id="officeLon" placeholder="106.8456" type="number" step="0.000001">
+        <p class="coord-hint">Positif = Belahan Bumi Timur</p>
+      </div>
+    </div>
+    <div style="background:var(--surface2);border-radius:12px;padding:14px;margin-bottom:4px;border:1px solid var(--border);">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">💡 <strong style="color:var(--text);">Cara dapat koordinat:</strong></p>
+      <ol style="font-size:12px;color:var(--muted);padding-left:16px;line-height:1.8;">
+        <li>Buka <a href="https://maps.google.com" target="_blank" style="color:var(--accent);">Google Maps</a></li>
+        <li>Klik kanan pada lokasi kantor</li>
+        <li>Klik angka koordinat yang muncul (otomatis tersalin)</li>
+        <li>Format: <span style="font-family:'JetBrains Mono',monospace;color:var(--text);">-6.208763, 106.845599</span></li>
+        <li>Angka pertama = Latitude, kedua = Longitude</li>
+      </ol>
+      <button class="btn btn-sm btn-outline" onclick="getMyLocation()" style="margin-top:10px;font-size:12px;">📡 Gunakan Lokasi Saya Sekarang</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-purple" onclick="saveOffice()" id="saveOfficeBtn">💾 Simpan Kantor</button>
+      <button class="btn btn-sm btn-outline" onclick="closeOfficeModal()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: KARYAWAN ===== -->
+<div class="modal-overlay" id="empModal">
+  <div class="modal-box">
+    <div class="modal-title" id="empModalTitle">Tambah Karyawan</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nama Lengkap <span style="color:var(--red)">*</span></label>
+        <input class="form-control" id="empNama" placeholder="John Doe">
+      </div>
+      <div class="form-group">
+        <label>ID Karyawan <span style="color:var(--red)">*</span></label>
+        <input class="form-control" id="empKaryawanId" placeholder="TSA-001" style="font-family:'JetBrains Mono',monospace;font-weight:600;letter-spacing:1px;" oninput="this.value=this.value.toUpperCase()">
+        <p style="font-size:11px;color:var(--muted);margin-top:4px;">Digunakan karyawan untuk login.</p>
+      </div>
+      <div class="form-group">
+        <label>Password Login Karyawan <span style="color:var(--red)">*</span></label>
+        <div style="position:relative;">
+          <input class="form-control" id="empPassword" type="password" value="123456" placeholder="Default: 123456" style="padding-right:40px;">
+          <button type="button" onclick="toggleEmpPasswordVisibility()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;" title="Tampilkan/Sembunyikan">👁</button>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-top:4px;">Saat edit: kosongkan jika tidak ingin mengubah password.</p>
+      </div>
+      <div class="form-group"><label>Email</label><input class="form-control" id="empEmail" type="email" placeholder="john@company.com"></div>
+      <div class="form-group"><label>Jabatan</label><input class="form-control" id="empJabatan" placeholder="Software Engineer"></div>
+      <div class="form-group"><label>Divisi</label>
+        <select class="form-control" id="empDivisi">
+          <option value="">— Pilih Divisi —</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Telepon</label><input class="form-control" id="empTelepon" placeholder="08123456789"></div>
+      <div class="form-group"><label>Tanggal Bergabung</label><input class="form-control" id="empJoin" type="date"></div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>Kantor / Lokasi Kerja</label>
+        <select class="form-control" id="empOffice">
+          <option value="">— Belum ditugaskan —</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="saveEmployee()" id="saveEmpBtn">💾 Simpan</button>
+      <button class="btn btn-sm btn-outline" onclick="closeEmpModal()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sidebar overlay for mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ===== MODAL: SHIFT ===== -->
+<div class="modal-overlay" id="shiftModal">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-title" id="shiftModalTitle">Tambah Shift Kerja</div>
+    <div class="form-group">
+      <label>Nama Shift <span style="color:var(--red)">*</span></label>
+      <input class="form-control" id="shiftNama" placeholder="Shift Pagi / Shift Siang / Normal">
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Jam Masuk <span style="color:var(--red)">*</span></label>
+        <input class="form-control" type="time" id="shiftJamMasuk" value="08:00">
+      </div>
+      <div class="form-group">
+        <label>Jam Keluar <span style="color:var(--red)">*</span></label>
+        <input class="form-control" type="time" id="shiftJamKeluar" value="17:00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Toleransi Terlambat (menit)</label>
+      <input class="form-control" type="number" id="shiftToleransi" value="15" min="0" max="120">
+    </div>
+    <div class="form-group">
+      <label>Hari Aktif</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;" id="shiftHariPicker">
+        <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;">
+          <input type="checkbox" value="1" checked style="accent-color:var(--accent);"> Senin
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;">
+          <input type="checkbox" value="2" checked style="accent-color:var(--accent);"> Selasa
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;">
+          <input type="checkbox" value="3" checked style="accent-color:var(--accent);"> Rabu
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;">
+          <input type="checkbox" value="4" checked style="accent-color:var(--accent);"> Kamis
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;">
+          <input type="checkbox" value="5" checked style="accent-color:var(--accent);"> Jumat
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;">
+          <input type="checkbox" value="6" style="accent-color:var(--accent);"> Sabtu
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;">
+          <input type="checkbox" value="0" style="accent-color:var(--accent);"> Minggu
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Deskripsi (opsional)</label>
+      <input class="form-control" id="shiftDeskripsi" placeholder="Misal: Shift reguler kantor pusat">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-purple" onclick="saveShift()" id="saveShiftBtn">💾 Simpan Shift</button>
+      <button class="btn btn-sm btn-outline" onclick="closeShiftModal()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: KETERANGAN ABSEN ===== -->
+<div class="modal-overlay" id="keteranganModal" style="z-index:600;">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-title" id="keteranganModalTitle">⚠️ Keterangan Wajib Diisi</div>
+    <p id="keteranganModalDesc" style="font-size:13px;color:var(--muted);margin-bottom:20px;"></p>
+    <div class="form-group">
+      <label>Keterangan / Alasan <span style="color:var(--red)">*</span></label>
+      <textarea class="form-control" id="keteranganInput" rows="3" placeholder="Tuliskan keterangan atau alasan Anda..." style="resize:vertical;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="submitKeteranganAbsen()" id="keteranganSubmitBtn">✅ Lanjutkan Absen</button>
+      <button class="btn btn-sm btn-outline" onclick="cancelKeteranganAbsen()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: CAMERA ===== -->
+<div class="camera-modal" id="cameraModal" style="display:none;">
+  <div class="camera-box">
+    <h3>📸 Selfie Absensi <span id="absenType" style="color:var(--accent)">Masuk</span></h3>
+
+    <!-- Keterangan inline — tampil otomatis jika terlambat/di luar radius -->
+    <div id="cameraKeteranganSection" style="display:none;margin-bottom:14px;background:rgba(220,38,38,0.06);border:1.5px solid rgba(220,38,38,0.25);border-radius:12px;padding:14px;">
+      <div id="cameraKeteranganAlert" style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:10px;line-height:1.6;"></div>
+      <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Keterangan / Alasan <span style="color:var(--red)">*</span></label>
+      <textarea id="cameraKeteranganInput" class="form-control" rows="2" placeholder="Tuliskan keterangan atau alasan Anda..." style="resize:vertical;font-size:13px;"></textarea>
+    </div>
+
+    <video id="videoEl" autoplay playsinline></video>
+    <canvas id="canvasEl"></canvas>
+    <img id="photoPreview" style="display:none;width:100%;border-radius:12px;transform:scaleX(-1);" alt="selfie">
+    <div class="camera-btns">
+      <button class="btn" onclick="capturePhoto()" id="snapBtn">📸 Ambil Foto</button>
+      <button class="btn btn-green" onclick="isEmployeeMode ? checkAndConfirmEmp() : confirmAbsen()" id="confirmBtn" style="display:none;">✅ Konfirmasi</button>
+      <button class="btn btn-outline" onclick="closeCamera()">❌ Batal</button>
+    </div>
+    <div id="cameraInfo" style="text-align:center;font-size:12px;color:var(--muted);margin-top:12px;"></div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT — Modular Structure                               -->
+<!-- ============================================================ -->
+
+<!-- 1. Supabase Client -->
+<script src="js/services/supabase.js"></script>
+
+<!-- 2. State -->
+<script src="js/state.js"></script>
+
+<!-- 3. Utilities -->
+<script src="js/utils.js"></script>
+
+<!-- 4. Services (Data fetch & API) -->
+<script src="js/services/data.js"></script>
+<script src="js/services/auth.js"></script>
+
+<!-- 5. Components (Reusable UI logic) -->
+<script src="js/components/navigation.js"></script>
+<script src="js/components/camera.js"></script>
+<script src="js/components/clock-geo.js"></script>
+
+<!-- 6. Pages — Admin -->
+<script src="js/pages/admin-dashboard.js"></script>
+<script src="js/pages/admin-offices.js"></script>
+<script src="js/pages/admin-employees.js"></script>
+<script src="js/pages/admin-settings.js"></script>
+<script src="js/pages/admin-leave.js"></script>
+<script src="js/pages/admin-export.js"></script>
+
+<!-- 7. Pages — Employee Portal -->
+<script src="js/pages/employee-portal.js"></script>
+
+<!-- 8. Boot -->
+<script>boot();</script>
+
+
+<!-- ============================================================ -->
+<!-- CUSTOM CONFIRM MODAL                                          -->
+<!-- ============================================================ -->
+<div id="customConfirmOverlay" style="
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(15,23,42,0.45);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  z-index:99999;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+">
+  <div id="customConfirmBox" style="
+    background:var(--surface);
+    border-radius:var(--r-xl);
+    box-shadow:var(--shadow-xl);
+    padding:28px 24px 24px;
+    width:100%;
+    max-width:360px;
+    text-align:center;
+    transform:scale(0.92);
+    opacity:0;
+    transition:transform 0.2s cubic-bezier(.34,1.56,.64,1), opacity 0.18s ease;">
+    <div id="customConfirmIcon" style="font-size:40px;margin-bottom:12px;line-height:1;"></div>
+    <p id="customConfirmTitle" style="
+      font-size:16px;font-weight:700;color:var(--text);
+      margin:0 0 6px;
+    "></p>
+    <p id="customConfirmMsg" style="
+      font-size:13px;color:var(--text-secondary);
+      margin:0 0 22px;line-height:1.5;
+    "></p>
+    <div style="display:flex;gap:10px;">
+      <button id="customConfirmCancel" style="
+        flex:1;padding:11px;border-radius:var(--r-md);
+        border:1.5px solid var(--border-strong);
+        background:transparent;color:var(--text-secondary);
+        font-family:inherit;font-size:14px;font-weight:600;
+        cursor:pointer;transition:background 0.15s;
+      "
+       onmouseover="this.style.background='var(--surface2)'"
+        onmouseout="this.style.background='transparent'"
+      >Batal</button>
+      <button id="customConfirmOk" style="
+        flex:1;padding:11px;border-radius:var(--r-md);
+        border:none;
+        font-family:inherit;font-size:14px;font-weight:600;
+        cursor:pointer;transition:opacity 0.15s;color:#fff;
+      "
+        onmouseover="this.style.opacity='0.88'"
+        onmouseout="this.style.opacity='1'"
+      ></button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// showConfirm — pengganti confirm() bawaan browser
+// Penggunaan:
+//   const ok = await showConfirm({ icon, title, message, okText, okColor })
+// ============================================================
+function showConfirm({ icon='⚠️', title='', message='', okText='Ya, Lanjutkan', okColor='var(--red)' } = {}) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('customConfirmOverlay');
+    const box     = document.getElementById('customConfirmBox');
+    document.getElementById('customConfirmIcon').textContent  = icon;
+    document.getElementById('customConfirmTitle').textContent = title;
+    document.getElementById('customConfirmMsg').textContent   = message;
+    const okBtn = document.getElementById('customConfirmOk');
+    okBtn.textContent    = okText;
+    okBtn.style.background = okColor;
+
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => {
+      box.style.transform = 'scale(1)';
+      box.style.opacity   = '1';
+    });
+
+    function close(result) {
+      box.style.transform = 'scale(0.92)';
+      box.style.opacity   = '0';
+      setTimeout(() => { overlay.style.display = 'none'; }, 180);
+      resolve(result);
+      okBtn.removeEventListener('click', onOk);
+      document.getElementById('customConfirmCancel').removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onOverlay);
+    }
+    function onOk()      { close(true);  }
+    function onCancel()  { close(false); }
+    function onOverlay(e){ if (e.target === overlay) close(false); }
+
+    okBtn.addEventListener('click', onOk);
+    document.getElementById('customConfirmCancel').addEventListener('click', onCancel);
+    overlay.addEventListener('click', onOverlay);
+  });
+}
+</script>
+
+<!-- ===== PWA INSTALL ===== -->
+<script>
+(function() {
+  let deferredPrompt = null;
+  const installBtn = document.getElementById('pwaInstallBtn');
+  if (!installBtn) return;
+
+  // Cek semua kemungkinan "sudah diinstall & dibuka dari ikon"
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
+    window.navigator.standalone === true;
+
+  // Jika dibuka dari ikon homescreen, sembunyikan tombol permanen
+  if (isStandalone) {
+    installBtn.style.display = 'none';
+    return;
+  }
+
+  // Simpan status install di localStorage
+  // Jika pernah berhasil diinstall sebelumnya, sembunyikan tombol
+  if (localStorage.getItem('pwa_installed') === '1') {
+    installBtn.style.display = 'none';
+    return;
+  }
+
+  // Tangkap event — hanya tampilkan tombol jika prompt benar-benar siap
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'flex';
+  });
+
+  // Setelah berhasil install — simpan status & sembunyikan tombol
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+    localStorage.setItem('pwa_installed', '1');
+  });
+
+  window.triggerPwaInstall = async function() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (outcome === 'accepted') {
+      installBtn.style.display = 'none';
+      localStorage.setItem('pwa_installed', '1');
+    }
+  };
+
+  // Daftarkan Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('[SW] Registered'))
+        .catch((err) => console.warn('[SW] Failed:', err));
+    });
+  }
+})();
+</script>
+</body>
+</html>
