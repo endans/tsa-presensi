@@ -1,0 +1,11 @@
+# Environment — JANGAN di-commit!
+.env
+.env.local
+
+# Build output — dibuat saat deploy, tidak perlu di-commit
+dist/
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
